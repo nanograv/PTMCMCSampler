@@ -12,6 +12,7 @@ try:
     from mpi4py import MPI
 except ImportError:
     from . import nompi4py as MPI
+    print("WARNING: no mpi4py installed. Parallel jobs will not run correctly")
 
 try:
     import acor

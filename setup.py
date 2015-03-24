@@ -9,8 +9,6 @@ except ImportError:
     from distutils.core import setup
     from distutils.extension import Extension
 
-from Cython.Build import cythonize
-
 
 if sys.argv[-1] == "publish":
     os.system("python setup.py sdist upload")
@@ -40,8 +38,4 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
     ]
-    # For Cython code, include the following modules
-    #,
-    #ext_modules = cythonize(Extension('pal2.jitterext', ['pal2/jitterext.pyx'],
-    #        include_dirs = [numpy.get_include()]))
 )
