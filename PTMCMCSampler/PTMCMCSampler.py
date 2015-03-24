@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 from __future__ import division
 
 import numpy as np
@@ -54,9 +53,10 @@ class PTSampler(object):
 
     """
 
-    def __init__(self, ndim, logl, logp, cov, groups=None, loglargs=[], loglkwargs={},
-                 logpargs=[], logpkwargs={}, comm=MPI.COMM_WORLD,
-                 outDir='./chains', verbose=True, resume=False):
+    def __init__(self, ndim, logl, logp, cov, groups=None, loglargs=[],
+                 loglkwargs={}, logpargs=[], logpkwargs={},
+                 comm=MPI.COMM_WORLD, outDir='./chains',
+                 verbose=True, resume=False):
 
         # MPI initialization
         self.comm = comm
@@ -215,8 +215,10 @@ class PTSampler(object):
             np.save(self.outDir + '/cov.npy', self.cov)
             if self.MPIrank == 0 and self.verbose and iter > 1:
                 sys.stdout.write('\r')
-                sys.stdout.write('Finished %2.2f percent in %f s Acceptance rate = %g'
-                                 % (iter / self.Niter * 100, time.time() - self.tstart,
+                sys.stdout.write('Finished %2.2f percent in %f s' +
+                                 'Acceptance rate = %g'
+                                 % (iter / self.Niter * 100,
+                                    time.time() - self.tstart,
                                     self.naccepted / iter))
                 sys.stdout.flush()
 
@@ -263,9 +265,9 @@ class PTSampler(object):
             self.initialize(Niter, ladder=ladder, Tmin=Tmin, Tmax=Tmax,
                             Tskip=Tskip, isave=isave, covUpdate=covUpdate,
                             KDEupdate=KDEupdate, SCAMweight=SCAMweight,
-                            AMweight=AMweight, DEweight=DEweight, 
+                            AMweight=AMweight, DEweight=DEweight,
                             KDEweight=KDEweight, burn=burn,
-                            maxIter=maxIter, thin=thin, i0=i0, 
+                            maxIter=maxIter, thin=thin, i0=i0,
                             neff=neff)
 
         ### compute lnprob for initial point in chain ###
@@ -310,8 +312,9 @@ class PTSampler(object):
             if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
                 try:
                     Neff = iter / \
-                            np.max([acor.acor(self._AMbuffer[self.burn:(iter - 1), ii])[0]
-                                          for ii in range(self.ndim)])
+                        np.max([acor.acor(self._AMbuffer[
+                            self.burn:(iter - 1), ii])[0]
+                            for ii in range(self.ndim)])
                     # print '\n {0} effective samples'.format(Neff)
                 except NameError:
                     Neff = 0
@@ -386,8 +389,8 @@ class PTSampler(object):
                 self.randomizeProposalCycle()
 
         # update DE buffer
-        if (iter - 1) % self.burn == 0 and (iter -
-                                            1) != 0 and self.MPIrank == 0:
+        if ((iter - 1) % self.burn == 0 and (iter - 1) != 0
+                and self.MPIrank == 0):
             self._updateDEbuffer(iter - 1, self.burn)
 
             # broadcast to other chains
@@ -528,9 +531,9 @@ class PTSampler(object):
                 newlnlike = self.comm.recv(source=self.MPIrank - 1)
 
                 # determine if swap is accepted and tell other chain
-                logChainSwap = (1 / self.ladder[self.MPIrank - 1] -
-                                1 / self.ladder[self.MPIrank]) \
-                    * (lnlike0 - newlnlike)
+                logChainSwap = ((1 / self.ladder[self.MPIrank - 1] -
+                                1 / self.ladder[self.MPIrank])
+                                * (lnlike0 - newlnlike))
 
                 if logChainSwap > np.log(np.random.rand()):
                     swapAccepted = 1
@@ -610,7 +613,7 @@ class PTSampler(object):
                                              for kk in range(self.ndim)]))
             self._chainfile.write('\t%f\t %f\t %f\t %f\t' % (self._lnprob[ind],
                                                              self._lnlike[ind],
-                                                             self.naccepted / 
+                                                             self.naccepted /
                                                              iter, pt_acc))
             self._chainfile.write('\n')
         self._chainfile.close()
@@ -761,8 +764,9 @@ class PTSampler(object):
 
         #y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.S[ind])
         #q[self.covinds] = np.dot(self.U, y)
-        q[self.groups[jumpind]] += np.random.randn() * cd * np.sqrt(self.S[jumpind][ind]) * \
-            self.U[jumpind][:, ind].flatten()
+        q[self.groups[jumpind]] += (np.random.randn() * cd *
+                                    np.sqrt(self.S[jumpind][ind]) *
+                                    self.U[jumpind][:, ind].flatten())
 
         return q, qxy
 
