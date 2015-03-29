@@ -1,0 +1,442 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>PTMCMCSampler package &mdash; PTMCMCSampler  documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="PTMCMCSampler  documentation" href="index.html" />
+    <link rel="prev" title="Welcome to PTMCMCSampler’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to PTMCMCSampler’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PTMCMCSampler  documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="ptmcmcsampler-package">
+<h1>PTMCMCSampler package<a class="headerlink" href="#ptmcmcsampler-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="ptmcmcsampler-ptmcmcsampler-module">
+<h2>PTMCMCSampler.PTMCMCSampler module<a class="headerlink" href="#ptmcmcsampler-ptmcmcsampler-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="ptmcmcsampler-nompi4py-module">
+<h2>PTMCMCSampler.nompi4py module<a class="headerlink" href="#ptmcmcsampler-nompi4py-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-PTMCMCSampler">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-PTMCMCSampler" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="PTMCMCSampler.PTSampler">
+<em class="property">class </em><tt class="descclassname">PTMCMCSampler.</tt><tt class="descname">PTSampler</tt><big>(</big><em>ndim</em>, <em>logl</em>, <em>logp</em>, <em>cov</em>, <em>groups=None</em>, <em>loglargs=[]</em>, <em>loglkwargs={}</em>, <em>logpargs=[]</em>, <em>logpkwargs={}</em>, <em>comm=&lt;mpi4py.MPI.Intracomm object at 0x10455cd90&gt;</em>, <em>outDir='./chains'</em>, <em>verbose=True</em>, <em>resume=False</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Parallel Tempering Markov Chain Monte-Carlo (PTMCMC) sampler.
+This implementation uses an adaptive jump proposal scheme
+by default using both standard and single component Adaptive
+Metropolis (AM) and Differential Evolution (DE) jumps.</p>
+<p>This implementation also makes use of MPI (mpi4py) to run
+the parallel chains.</p>
+<p>Along with the AM and DE jumps, the user can add custom
+jump proposals with the <tt class="docutils literal"><span class="pre">addProposalToCycle</span></tt> fuction.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>ndim</strong> &#8211; number of dimensions in problem</li>
+<li><strong>logl</strong> &#8211; log-likelihood function</li>
+<li><strong>logp</strong> &#8211; log prior function (must be normalized for evidence evaluation)</li>
+<li><strong>cov</strong> &#8211; Initial covariance matrix of model parameters for jump proposals</li>
+<li><strong>covinds</strong> &#8211; Indices of parameters for which to perform adaptive jumps</li>
+<li><strong>loglargs</strong> &#8211; any additional arguments (apart from the parameter vector)
+for log likelihood</li>
+<li><strong>loglkwargs</strong> &#8211; any additional keyword arguments (apart from the parameter vector)
+for log likelihood</li>
+<li><strong>logpargs</strong> &#8211; any additional arguments (apart from the parameter vector) for
+log like prior</li>
+<li><strong>logpkwargs</strong> &#8211; any additional keyword arguments (apart from the parameter vector)
+for log prior</li>
+<li><strong>outDir</strong> &#8211; Full path to output directory for chain files (default = ./chains)</li>
+<li><strong>verbose</strong> &#8211; Update current run-status to the screen (default=True)</li>
+<li><strong>resume</strong> &#8211; Resume from a previous chain (still in testing so beware) (default=False)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.DEJump">
+<tt class="descname">DEJump</tt><big>(</big><em>x</em>, <em>iter</em>, <em>beta</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.DEJump"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.DEJump" title="Permalink to this definition">¶</a></dt>
+<dd><p>Differential Evolution Jump. This function will  occasionally
+use different jump sizes to ensure proper mixing.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>x</strong> &#8211; Parameter vector at current position</li>
+<li><strong>iter</strong> &#8211; Iteration of sampler</li>
+<li><strong>beta</strong> &#8211; Inverse temperature of chain</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">New position in parameter space</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Forward-Backward jump probability</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.KDEJumpProposal">
+<tt class="descname">KDEJumpProposal</tt><big>(</big><em>x</em>, <em>iter</em>, <em>beta</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.KDEJumpProposal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.KDEJumpProposal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use Gaussian KDE from previous chain values to propose new parameters.
+This does not depend on the current position in parameter space and should
+help reduce the ACL of the chain.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>x</strong> &#8211; Parameter vector at current position</li>
+<li><strong>iter</strong> &#8211; Iteration of sampler</li>
+<li><strong>beta</strong> &#8211; Inverse temperature of chain</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">New position in parameter space</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Forward-Backward jump probability</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.PTMCMCOneStep">
+<tt class="descname">PTMCMCOneStep</tt><big>(</big><em>p0</em>, <em>lnlike0</em>, <em>lnprob0</em>, <em>iter</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.PTMCMCOneStep"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.PTMCMCOneStep" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function to carry out PTMCMC sampling.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>p0</strong> &#8211; Initial parameter vector</li>
+<li><strong>lnlike0</strong> &#8211; Initial log-likelihood value</li>
+<li><strong>lnprob0</strong> &#8211; Initial log probability value</li>
+<li><strong>iter</strong> &#8211; iteration number</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">next value of parameter vector after one MCMC step</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">next value of likelihood after one MCMC step</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">next value of posterior after one MCMC step</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.PTswap">
+<tt class="descname">PTswap</tt><big>(</big><em>p0</em>, <em>lnlike0</em>, <em>lnprob0</em>, <em>iter</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.PTswap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.PTswap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do parallel tempering swap.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>p0</strong> &#8211; current parameter vector</li>
+<li><strong>lnlike0</strong> &#8211; current log-likelihood</li>
+<li><strong>lnprob0</strong> &#8211; current log posterior value</li>
+<li><strong>iter</strong> &#8211; current iteration number</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">0 = no swap proposed, 1 = swap proposed and rejected,
+2 = swap proposed and accepted</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">new parameter vector</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">new log-likelihood</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">new log posterior value</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.addAuxilaryJump">
+<tt class="descname">addAuxilaryJump</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.addAuxilaryJump"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.addAuxilaryJump" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add auxilary jump proposal distribution. This will be called after every
+standard jump proposal. Examples include cyclic boundary conditions and
+pulsar phase fixes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; jump proposal function</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.addProposalToCycle">
+<tt class="descname">addProposalToCycle</tt><big>(</big><em>func</em>, <em>weight</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.addProposalToCycle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.addProposalToCycle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add jump proposal distributions to cycle with a given weight.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>func</strong> &#8211; jump proposal function</li>
+<li><strong>weight</strong> &#8211; jump proposal function weight in cycle</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.covarianceJumpProposalAM">
+<tt class="descname">covarianceJumpProposalAM</tt><big>(</big><em>x</em>, <em>iter</em>, <em>beta</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.covarianceJumpProposalAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.covarianceJumpProposalAM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adaptive Jump Proposal. This function will occasionally
+use different jump sizes to ensure proper mixing.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>x</strong> &#8211; Parameter vector at current position</li>
+<li><strong>iter</strong> &#8211; Iteration of sampler</li>
+<li><strong>beta</strong> &#8211; Inverse temperature of chain</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">New position in parameter space</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Forward-Backward jump probability</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.covarianceJumpProposalSCAM">
+<tt class="descname">covarianceJumpProposalSCAM</tt><big>(</big><em>x</em>, <em>iter</em>, <em>beta</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.covarianceJumpProposalSCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.covarianceJumpProposalSCAM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Single Component Adaptive Jump Proposal. This function will occasionally
+jump in more than 1 parameter. It will also occasionally use different
+jump sizes to ensure proper mixing.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>x</strong> &#8211; Parameter vector at current position</li>
+<li><strong>iter</strong> &#8211; Iteration of sampler</li>
+<li><strong>beta</strong> &#8211; Inverse temperature of chain</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">New position in parameter space</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Forward-Backward jump probability</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.initialize">
+<tt class="descname">initialize</tt><big>(</big><em>Niter</em>, <em>ladder=None</em>, <em>Tmin=1</em>, <em>Tmax=None</em>, <em>Tskip=100</em>, <em>isave=1000</em>, <em>covUpdate=1000</em>, <em>KDEupdate=10000</em>, <em>SCAMweight=20</em>, <em>AMweight=20</em>, <em>DEweight=20</em>, <em>KDEweight=30</em>, <em>burn=10000</em>, <em>maxIter=None</em>, <em>thin=10</em>, <em>i0=0</em>, <em>neff=100000</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize MCMC quantities</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>maxIter</strong> &#8211; maximum number of iterations</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Praam Tmin:</th><td class="field-body">minimum temperature to use in temperature ladder</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.randomizeProposalCycle">
+<tt class="descname">randomizeProposalCycle</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.randomizeProposalCycle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.randomizeProposalCycle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Randomize proposal cycle that has already been filled</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.sample">
+<tt class="descname">sample</tt><big>(</big><em>p0</em>, <em>Niter</em>, <em>ladder=None</em>, <em>Tmin=1</em>, <em>Tmax=None</em>, <em>Tskip=100</em>, <em>isave=1000</em>, <em>covUpdate=1000</em>, <em>KDEupdate=1000</em>, <em>SCAMweight=20</em>, <em>AMweight=20</em>, <em>DEweight=20</em>, <em>KDEweight=0</em>, <em>burn=10000</em>, <em>maxIter=None</em>, <em>thin=10</em>, <em>i0=0</em>, <em>neff=100000</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function to carry out PTMCMC sampling.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>p0</strong> &#8211; Initial parameter vector</li>
+<li><strong>self.Niter</strong> &#8211; Number of iterations to use for T = 1 chain</li>
+<li><strong>ladder</strong> &#8211; User defined temperature ladder</li>
+<li><strong>Tmin</strong> &#8211; Minimum temperature in ladder (default=1)</li>
+<li><strong>Tmax</strong> &#8211; Maximum temperature in ladder (default=None)</li>
+<li><strong>Tskip</strong> &#8211; Number of steps between proposed temperature swaps (default=100)</li>
+<li><strong>isave</strong> &#8211; Number of iterations before writing to file (default=1000)</li>
+<li><strong>covUpdate</strong> &#8211; Number of iterations between AM covariance updates (default=1000)</li>
+<li><strong>KDEUpdate</strong> &#8211; Number of iterations between KDE updates (default=1000)</li>
+<li><strong>SCAMweight</strong> &#8211; Weight of SCAM jumps in overall jump cycle (default=20)</li>
+<li><strong>AMweight</strong> &#8211; Weight of AM jumps in overall jump cycle (default=20)</li>
+<li><strong>DEweight</strong> &#8211; Weight of DE jumps in overall jump cycle (default=20)</li>
+<li><strong>KDEweight</strong> &#8211; Weight of KDE jumps in overall jump cycle (default=100)</li>
+<li><strong>burn</strong> &#8211; Burn in time (DE jumps added after this iteration) (default=10000)</li>
+<li><strong>maxIter</strong> &#8211; Maximum number of iterations for high temperature chains
+(default=2*self.Niter)</li>
+<li><strong>self.thin</strong> &#8211; Save every self.thin MCMC samples</li>
+<li><strong>i0</strong> &#8211; Iteration to start MCMC (if i0 !=0, do not re-initialize)</li>
+<li><strong>neff</strong> &#8211; Number of effective samples to collect before terminating</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.temperatureLadder">
+<tt class="descname">temperatureLadder</tt><big>(</big><em>Tmin</em>, <em>Tmax=None</em>, <em>tstep=None</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.temperatureLadder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.temperatureLadder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to compute temperature ladder. At the moment this uses
+a geometrically spaced temperature ladder with a temperature
+spacing designed to give 25 % temperature swap acceptance rate.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="PTMCMCSampler.PTSampler.updateChains">
+<tt class="descname">updateChains</tt><big>(</big><em>p0</em>, <em>lnlike0</em>, <em>lnprob0</em>, <em>iter</em><big>)</big><a class="reference internal" href="_modules/PTMCMCSampler.html#PTSampler.updateChains"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#PTMCMCSampler.PTSampler.updateChains" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update chains after jump proposals</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">PTMCMCSampler package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#ptmcmcsampler-ptmcmcsampler-module">PTMCMCSampler.PTMCMCSampler module</a></li>
+<li><a class="reference internal" href="#ptmcmcsampler-nompi4py-module">PTMCMCSampler.nompi4py module</a></li>
+<li><a class="reference internal" href="#module-PTMCMCSampler">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to PTMCMCSampler&#8217;s documentation!</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/PTMCMCSampler.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to PTMCMCSampler’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">PTMCMCSampler  documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Justin A. Ellis.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>
