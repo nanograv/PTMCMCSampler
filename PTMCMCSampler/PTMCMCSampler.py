@@ -35,22 +35,26 @@ class PTSampler(object):
     Along with the AM and DE jumps, the user can add custom
     jump proposals with the ``addProposalToCycle`` fuction.
 
-    @param ndim: number of dimensions in problem
-    @param logl: log-likelihood function
-    @param logp: log prior function (must be normalized for evidence evaluation)
-    @param cov: Initial covariance matrix of model parameters for jump proposals
-    @param covinds: Indices of parameters for which to perform adaptive jumps
-    @param loglargs: any additional arguments (apart from the parameter vector) for
-    log likelihood
-    @param loglkwargs: any additional keyword arguments (apart from the parameter vector)
-    for log likelihood
-    @param logpargs: any additional arguments (apart from the parameter vector) for
-    log like prior
-    @param logpkwargs: any additional keyword arguments (apart from the parameter vector)
-    for log prior
-    @param outDir: Full path to output directory for chain files (default = ./chains)
-    @param verbose: Update current run-status to the screen (default=True)
-    @param resume: Resume from a previous chain (still in testing so beware) (default=False)
+    :param ndim: number of dimensions in problem
+    :param logl: log-likelihood function
+    :param logp: log prior function (must be normalized for evidence evaluation)
+    :param cov: Initial covariance matrix of model parameters for jump proposals
+    :param covinds: Indices of parameters for which to perform adaptive jumps
+    :param loglargs:
+        any additional arguments (apart from the parameter vector)
+        for log likelihood
+    :param loglkwargs:
+        any additional keyword arguments (apart from the parameter vector)
+        for log likelihood
+    :param logpargs:
+        any additional arguments (apart from the parameter vector) for
+        log like prior
+    :param logpkwargs:
+        any additional keyword arguments (apart from the parameter vector)
+        for log prior
+    :param outDir: Full path to output directory for chain files (default = ./chains)
+    :param verbose: Update current run-status to the screen (default=True)
+    :param resume: Resume from a previous chain (still in testing so beware) (default=False)
 
     """
 
@@ -113,8 +117,8 @@ class PTSampler(object):
         """
         Initialize MCMC quantities
 
-        @param maxIter: maximum number of iterations
-        @Tmin: minumum temperature to use in temperature ladder
+        :param maxIter: maximum number of iterations
+        :praam Tmin: minimum temperature to use in temperature ladder
 
         """
         # get maximum number of iteration
@@ -230,25 +234,25 @@ class PTSampler(object):
         """
         Function to carry out PTMCMC sampling.
 
-        @param p0: Initial parameter vector
-        @param self.Niter: Number of iterations to use for T = 1 chain
-        @param ladder: User defined temperature ladder
-        @param Tmin: Minimum temperature in ladder (default=1)
-        @param Tmax: Maximum temperature in ladder (default=None)
-        @param Tskip: Number of steps between proposed temperature swaps (default=100)
-        @param isave: Number of iterations before writing to file (default=1000)
-        @param covUpdate: Number of iterations between AM covariance updates (default=1000)
-        @param KDEUpdate: Number of iterations between KDE updates (default=1000)
-        @param SCAMweight: Weight of SCAM jumps in overall jump cycle (default=20)
-        @param AMweight: Weight of AM jumps in overall jump cycle (default=20)
-        @param DEweight: Weight of DE jumps in overall jump cycle (default=20)
-        @param KDEweight: Weight of KDE jumps in overall jump cycle (default=100)
-        @param burn: Burn in time (DE jumps added after this iteration) (default=10000)
-        @param maxIter: Maximum number of iterations for high temperature chains
+        :param p0: Initial parameter vector
+        :param self.Niter: Number of iterations to use for T = 1 chain
+        :param ladder: User defined temperature ladder
+        :param Tmin: Minimum temperature in ladder (default=1)
+        :param Tmax: Maximum temperature in ladder (default=None)
+        :param Tskip: Number of steps between proposed temperature swaps (default=100)
+        :param isave: Number of iterations before writing to file (default=1000)
+        :param covUpdate: Number of iterations between AM covariance updates (default=1000)
+        :param KDEUpdate: Number of iterations between KDE updates (default=1000)
+        :param SCAMweight: Weight of SCAM jumps in overall jump cycle (default=20)
+        :param AMweight: Weight of AM jumps in overall jump cycle (default=20)
+        :param DEweight: Weight of DE jumps in overall jump cycle (default=20)
+        :param KDEweight: Weight of KDE jumps in overall jump cycle (default=100)
+        :param burn: Burn in time (DE jumps added after this iteration) (default=10000)
+        :param maxIter: Maximum number of iterations for high temperature chains
                         (default=2*self.Niter)
-        @param self.thin: Save every self.thin MCMC samples
-        @param i0: Iteration to start MCMC (if i0 !=0, do not re-initialize)
-        @param neff: Number of effective samples to collect before terminating
+        :param self.thin: Save every self.thin MCMC samples
+        :param i0: Iteration to start MCMC (if i0 !=0, do not re-initialize)
+        :param neff: Number of effective samples to collect before terminating
 
         """
 
@@ -346,14 +350,14 @@ class PTSampler(object):
         """
         Function to carry out PTMCMC sampling.
 
-        @param p0: Initial parameter vector
-        @param lnlike0: Initial log-likelihood value
-        @param lnprob0: Initial log probability value
-        @param iter: iteration number
+        :param p0: Initial parameter vector
+        :param lnlike0: Initial log-likelihood value
+        :param lnprob0: Initial log probability value
+        :param iter: iteration number
 
-        @return p0: next value of parameter vector after one MCMC step
-        @return lnlike0: next value of likelihood after one MCMC step
-        @return lnprob0: next value of posterior after one MCMC step
+        :returns: next value of parameter vector after one MCMC step
+        :returns: next value of likelihood after one MCMC step
+        :returns: next value of posterior after one MCMC step
 
         """
         # update covariance matrix
@@ -476,18 +480,18 @@ class PTSampler(object):
         """
         Do parallel tempering swap.
 
-        @param p0: current parameter vector
-        @param lnlike0: current log-likelihood
-        @param lnprob0: current log posterior value
-        @param iter: current iteration number
+        :param p0: current parameter vector
+        :param lnlike0: current log-likelihood
+        :param lnprob0: current log posterior value
+        :param iter: current iteration number
 
-        @return swapReturn: 0 = no swap proposed,
-        1 = swap proposed and rejected,
-        2 = swap proposed and accepted
+        :returns:
+            0 = no swap proposed, 1 = swap proposed and rejected,
+            2 = swap proposed and accepted
 
-        @return p0: new parameter vector
-        @return lnlike0: new log-likelihood
-        @return lnprob0: new log posterior value
+        :returns: new parameter vector
+        :returns: new log-likelihood
+        :returns: new log posterior value
 
         """
 
@@ -599,7 +603,7 @@ class PTSampler(object):
         the first is log-posterior (unweighted), log-likelihood,
         and acceptance probability, followed by parameter values.
 
-        @param iter: Iteration of sampler
+        :param iter: Iteration of sampler
 
         """
 
@@ -624,8 +628,8 @@ class PTSampler(object):
         """
         Function to recursively update sample covariance matrix.
 
-        @param iter: Iteration of sampler
-        @param mem: Number of steps between updates
+        :param iter: Iteration of sampler
+        :param mem: Number of steps between updates
 
         """
 
@@ -663,7 +667,7 @@ class PTSampler(object):
         """
         Update gaussian KDE of posterior using previous samples
 
-        @param iter: current iteration of chain
+        :param iter: current iteration of chain
 
         """
         chain = self._AMbuffer[self.burn:iter, :]
@@ -675,8 +679,8 @@ class PTSampler(object):
         Update Differential Evolution with last burn
         values in the total chain
 
-        @param iter: Iteration of sampler
-        @param burn: Total number of samples in DE buffer
+        :param iter: Iteration of sampler
+        :param burn: Total number of samples in DE buffer
 
         """
 
@@ -689,12 +693,12 @@ class PTSampler(object):
         This does not depend on the current position in parameter space and should
         help reduce the ACL of the chain.
 
-        @param x: Parameter vector at current position
-        @param iter: Iteration of sampler
-        @param beta: Inverse temperature of chain
+        :param x: Parameter vector at current position
+        :param iter: Iteration of sampler
+        :param beta: Inverse temperature of chain
 
-        @return: q: New position in parameter space
-        @return: qxy: Forward-Backward jump probability
+        :returns: New position in parameter space
+        :returns: Forward-Backward jump probability
 
         """
         # new parameters
@@ -714,12 +718,12 @@ class PTSampler(object):
         jump in more than 1 parameter. It will also occasionally use different
         jump sizes to ensure proper mixing.
 
-        @param x: Parameter vector at current position
-        @param iter: Iteration of sampler
-        @param beta: Inverse temperature of chain
+        :param x: Parameter vector at current position
+        :param iter: Iteration of sampler
+        :param beta: Inverse temperature of chain
 
-        @return: q: New position in parameter space
-        @return: qxy: Forward-Backward jump probability
+        :returns: New position in parameter space
+        :returns: Forward-Backward jump probability
 
         """
 
@@ -777,12 +781,12 @@ class PTSampler(object):
         Adaptive Jump Proposal. This function will occasionally
         use different jump sizes to ensure proper mixing.
 
-        @param x: Parameter vector at current position
-        @param iter: Iteration of sampler
-        @param beta: Inverse temperature of chain
+        :param x: Parameter vector at current position
+        :param iter: Iteration of sampler
+        :param beta: Inverse temperature of chain
 
-        @return: q: New position in parameter space
-        @return: qxy: Forward-Backward jump probability
+        :returns: New position in parameter space
+        :returns: Forward-Backward jump probability
 
         """
 
@@ -839,12 +843,13 @@ class PTSampler(object):
         Differential Evolution Jump. This function will  occasionally
         use different jump sizes to ensure proper mixing.
 
-        @param x: Parameter vector at current position
-        @param iter: Iteration of sampler
-        @param beta: Inverse temperature of chain
+        :param x: Parameter vector at current position
+        :param iter: Iteration of sampler
+        :param beta: Inverse temperature of chain
 
-        @return: q: New position in parameter space
-        @return: qxy: Forward-Backward jump probability
+        :returns: New position in parameter space
+        :returns: Forward-Backward jump probability
+
 
         """
 
@@ -888,8 +893,8 @@ class PTSampler(object):
         """
         Add jump proposal distributions to cycle with a given weight.
 
-        @param func: jump proposal function
-        @param weight: jump proposal function weight in cycle
+        :param func: jump proposal function
+        :param weight: jump proposal function weight in cycle
 
         """
 
@@ -912,7 +917,7 @@ class PTSampler(object):
         standard jump proposal. Examples include cyclic boundary conditions and
         pulsar phase fixes
 
-        @param func: jump proposal function
+        :param func: jump proposal function
 
         """
 
