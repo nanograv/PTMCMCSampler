@@ -29,7 +29,7 @@ setup(
                     + open("HISTORY.md").read(),
     package_data={"": ["README.md", "HISTORY.md"]},
     include_package_data=True,
-    install_requires=["numpy", "scipy", "mpi4py"],
+    install_requires=["numpy", "scipy"],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
