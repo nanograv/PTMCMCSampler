@@ -1,7 +1,8 @@
-from __future__ import print_function, division
-import PTMCMCSampler
+from __future__ import print_function, division, absolute_import
 
-__version__ = 2015.01
+__version__ = 2015.02
+
+from PTMCMCSampler import *
 
 def test():
     # Run some tests here

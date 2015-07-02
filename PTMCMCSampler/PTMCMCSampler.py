@@ -102,14 +102,16 @@ class PTSampler(object):
 
         # initialize proposal cycle
         self.propCycle = []
+        self.jumpDict = {}
 
         # indicator for auxilary jumps
         self.aux = []
 
     def initialize(self, Niter, ladder=None, Tmin=1, Tmax=None, Tskip=100,
-                   isave=1000, covUpdate=1000, KDEupdate=10000, SCAMweight=20,
-                   AMweight=20, DEweight=20, KDEweight=30, burn=10000,
-                   maxIter=None, thin=10, i0=0, neff=100000):
+                   isave=1000, covUpdate=1000, KDEupdate=10000, SCAMweight=30,
+                   AMweight=20, DEweight=50, KDEweight=0, burn=10000,
+                   maxIter=None, thin=10, i0=0, neff=100000,
+                   writeHotChains=False, hotChain=False):
         """
         Initialize MCMC quantities
 
@@ -165,16 +167,24 @@ class PTSampler(object):
 
         # randomize cycle
         self.randomizeProposalCycle()
-
+        
         # setup default temperature ladder
         if self.ladder is None:
             self.ladder = self.temperatureLadder(Tmin, Tmax=Tmax)
 
         # temperature for current chain
         self.temp = self.ladder[self.MPIrank]
+        
+        # hot chain sampling from prior
+        if hotChain and self.MPIrank == self.nchain-1:
+            self.temp = 1e80
+            self.fname = self.outDir + '/chain_hot.txt'
+        else: 
+            self.fname = self.outDir + '/chain_{0}.txt'.format(self.temp)
 
-        # set up output file
-        self.fname = self.outDir + '/chain_{0}.txt'.format(self.temp)
+        # write hot chains
+        self.writeHotChains = writeHotChains
+
         self.resumeLength = 0
         if self.resume and os.path.isfile(self.fname):
             if self.verbose:
@@ -225,7 +235,8 @@ class PTSampler(object):
     def sample(self, p0, Niter, ladder=None, Tmin=1, Tmax=None, Tskip=100,
                isave=1000, covUpdate=1000, KDEupdate=1000, SCAMweight=20,
                AMweight=20, DEweight=20, KDEweight=0, burn=10000,
-               maxIter=None, thin=10, i0=0, neff=100000, writeHotChains=False):
+               maxIter=None, thin=10, i0=0, neff=100000,
+               writeHotChains=False, hotChain=False):
         """
         Function to carry out PTMCMC sampling.
 
@@ -257,8 +268,6 @@ class PTSampler(object):
         elif maxIter is None and self.MPIrank == 0:
             maxIter = Niter
 
-        self.writeHotChains = writeHotChains
-
         # set up arrays to store lnprob, lnlike and chain
         N = int(maxIter / thin)
 
@@ -270,7 +279,8 @@ class PTSampler(object):
                             AMweight=AMweight, DEweight=DEweight, 
                             KDEweight=KDEweight, burn=burn,
                             maxIter=maxIter, thin=thin, i0=i0, 
-                            neff=neff)
+                            neff=neff, writeHotChains=writeHotChains,
+                            hotChain=hotChain)
 
         ### compute lnprob for initial point in chain ###
 
@@ -433,7 +443,8 @@ class PTSampler(object):
             self.naccepted = iter * self.resumechain[iter, -2]
             accepted = 1
         else:
-            y, qxy = self._jump(p0, iter)
+            y, qxy, jump_name = self._jump(p0, iter)
+            self.jumpDict[jump_name][0] += 1 
 
             # compute prior and likelihood
             lp = self.logp(y)
@@ -457,6 +468,7 @@ class PTSampler(object):
                 # update acceptance counter
                 self.naccepted += 1
                 accepted = 1
+                self.jumpDict[jump_name][1] += 1 
 
         # temperature swap
         swapReturn, p0, lnlike0, lnprob0 = self.PTswap(
@@ -618,6 +630,30 @@ class PTSampler(object):
                                                              iter, pt_acc))
             self._chainfile.write('\n')
         self._chainfile.close()
+
+        #### write jump statistics files ####
+
+        # only for T=1 chain
+        if self.MPIrank == 0:
+
+            # first write file contaning jump names and jump rates
+            fout = open(self.outDir + '/jumps.txt', 'w')
+            njumps = len(self.propCycle)
+            ujumps = np.unique(self.propCycle)
+            for jump in ujumps:
+                fout.write('%s %4.2g\n' % (
+                    jump.__name__,
+                    np.sum(np.array(self.propCycle)==jump)/njumps))
+
+            fout.close()
+
+            # now write jump statistics for each jump proposal
+            for jump in self.jumpDict:
+                fout = open(self.outDir + '/' + jump + '_jump.txt', 'a+')
+                fout.write('%g\n'%(self.jumpDict[jump][1]/self.jumpDict[jump][0]))
+                fout.close()
+
+
 
     # function to update covariance matrix for jump proposals
     def _updateRecursive(self, iter, mem):
@@ -827,9 +863,6 @@ class PTSampler(object):
             np.random.randn(neff) * cd * np.sqrt(self.S[jumpind][ind])
         q[self.groups[jumpind]] = np.dot(self.U[jumpind], y)
 
-        #cd = 2.4/np.sqrt(2*self.ndim) * np.sqrt(scale)
-        #q = np.random.multivariate_normal(x, cd**2*self.cov)
-
         return q, qxy
 
     # Differential evolution jump
@@ -850,6 +883,10 @@ class PTSampler(object):
         # get old parameters
         q = x.copy()
         qxy = 0
+        
+        # choose group
+        jumpind = np.random.randint(0, len(self.groups))
+        ndim = len(self.groups[jumpind])
 
         bufsize = np.alen(self._DEbuffer)
 
@@ -869,16 +906,17 @@ class PTSampler(object):
             scale = 1.0
 
         else:
-            scale = np.random.rand() * 2.4 / np.sqrt(2 * self.ndim) * \
+            scale = np.random.rand() * 2.4 / np.sqrt(2 * ndim) * \
                 np.sqrt(1 / beta)
 
-        for ii in range(self.ndim):
+        for ii in range(ndim):
 
             # jump size
-            sigma = self._DEbuffer[mm, ii] - self._DEbuffer[nn, ii]
+            sigma = self._DEbuffer[mm, self.groups[jumpind][ii]] - \
+                    self._DEbuffer[nn, self.groups[jumpind][ii]]
 
             # jump
-            q[ii] += scale * sigma
+            q[self.groups[jumpind][ii]] += scale * sigma
 
         return q, qxy
 
@@ -903,6 +941,13 @@ class PTSampler(object):
         # add proposal to cycle
         for ii in range(length, length + weight):
             self.propCycle.append(func)
+
+        # add to jump dictionary and initialize file
+        if func.__name__ not in self.jumpDict:
+            self.jumpDict[func.__name__] = [0, 0]
+            fout = open(self.outDir + '/' + func.__name__ + '_jump.txt', 'w')
+            fout.close()
+
 
     # add auxilary jump proposal distribution functions
     def addAuxilaryJump(self, func):
@@ -929,7 +974,8 @@ class PTSampler(object):
         length = len(self.propCycle)
 
         # get random integers
-        index = np.random.randint(0, (length - 1), length)
+        index = np.arange(length)
+        np.random.shuffle(index)
 
         # randomize proposal cycle
         self.randomizedPropCycle = [self.propCycle[ind] for ind in index]
@@ -945,10 +991,8 @@ class PTSampler(object):
         length = len(self.propCycle)
 
         # call function
-        q, qxy = self.randomizedPropCycle[
-            np.mod(
-                iter, length)](
-            x, iter, 1 / self.temp)
+        ind = np.random.randint(0, length)
+        q, qxy = self.propCycle[ind](x, iter, 1/self.temp)
 
         # axuilary jump
         if len(self.aux) > 0:
@@ -956,11 +1000,7 @@ class PTSampler(object):
                 q, qxy_aux = aux(x, q, iter, 1 / self.temp)
                 qxy += qxy_aux
 
-        # increment proposal cycle counter and re-randomize if at end of cycle
-        if iter % length == 0:
-            self.randomizeProposalCycle()
-
-        return q, qxy
+        return q, qxy, self.propCycle[ind].__name__
 
     # TODO: jump statistics
 

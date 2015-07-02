@@ -2,12 +2,10 @@ import os
 import sys
 import numpy
 
-try:
-    from setuptools import setup
-    from setuptools import Extension
-except ImportError:
-    from distutils.core import setup
-    from distutils.extension import Extension
+from setuptools import setup
+from setuptools import Extension
+
+import PTMCMCSampler
 
 
 if sys.argv[-1] == "publish":
@@ -17,12 +15,14 @@ if sys.argv[-1] == "publish":
 
 setup(
     name="PTMCMCSampler",
-    version='2015.01',
+    version=PTMCMCSampler.__version__,
     author="Justin A. Ellis",
     author_email="justin.ellis18@gmail.com",
     packages=["PTMCMCSampler"],
+    package_dir = {'PTMCMCSampler': 'PTMCMCSampler'},
     url="https://github.com/jellis18/PTMCMCSampler",
     license="GPLv3",
+    zip_safe = False,
     description="Parallel tempering MCMC sampler written in Python",
     long_description=open("README.md").read() + "\n\n"
                     + "---------\n\n"
