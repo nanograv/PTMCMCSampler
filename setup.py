@@ -18,8 +18,10 @@ setup(
     version=PTMCMCSampler.__version__,
     author="Justin A. Ellis",
     author_email="justin.ellis18@gmail.com",
-    packages=["PTMCMCSampler"],
-    package_dir = {'PTMCMCSampler': 'PTMCMCSampler'},
+    packages=["PTMCMCSampler",
+              "PTMCMCSampler.samplers",
+              "PTMCMCSampler.proposals",
+              "PTMCMCSampler.backends"],
     url="https://github.com/jellis18/PTMCMCSampler",
     license="GPLv3",
     zip_safe = False,
@@ -39,3 +41,4 @@ setup(
         "Programming Language :: Python",
     ]
 )
+

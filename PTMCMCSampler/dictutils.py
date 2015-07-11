@@ -3,6 +3,7 @@
 from __future__ import division
 
 from collections import OrderedDict
+import numpy as np
 
 
 def make_ordered_dict(keys, values):

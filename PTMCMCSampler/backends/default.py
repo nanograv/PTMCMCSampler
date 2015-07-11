@@ -2,6 +2,8 @@
 
 from __future__ import division, print_function
 
+__all__ =  ["DefaultBackend"]
+
 import numpy as np
 
 
@@ -43,16 +45,21 @@ class DefaultBackend(object):
         # Clear jump dictionary
         self._jumpdict = {}
 
-    def check_dimensions(self, model):
+    def check_dimensions(self, model, thin):
         """
         Check that model dimensions are set.
 
         :param model:
             The :class:`Model` class
+
+        :param thin:
+            Thin argument from the sampler
         """
 
         if self.ndim is None:
             self.ndim = model.ndim
+        if self.thin != thin:
+            self.thin = thin
         if self.ndim != model.ndim:
             raise ValueError("Dimension mismatch")
 
@@ -96,6 +103,7 @@ class DefaultBackend(object):
             self._coords[i // self.thin] = model.coords
             self._logprior[i // self.thin] = model.logprior
             self._loglike[i // self.thin] = model.loglike
+            self._logpost[i // self.thin] = model.logpost
 
         self._buffer[i % self.bufsize] = model.coords
         self._acceptance += model.acceptance
@@ -110,14 +118,14 @@ class DefaultBackend(object):
         """
 
         # update if not in dictionary
-        if proposal.name not in self.jumpdict:
-            self.jumpdict[proposal.name] = [0, 0]
+        if proposal.name not in self._jumpdict:
+            self._jumpdict[proposal.name] = [0, 0]
 
         # update jump counter
-        self.jumpdict[proposal.name][0] += 0
+        self._jumpdict[proposal.name][0] += 1
 
         # update acceptance counter
-        self.jumpdict[proposal.name][1] += proposal.acceptance
+        self._jumpdict[proposal.name][1] += proposal.acceptance
 
 
     @property
@@ -126,7 +134,7 @@ class DefaultBackend(object):
 
     @property
     def buffer(self):
-        return self._buffer[:]
+        return self._buffer[:min(self.niter, self.bufsize)]
 
     @property
     def logprior(self):
@@ -137,7 +145,7 @@ class DefaultBackend(object):
         return self._loglike[:(self.niter // self.thin)]
 
     @property
-    def logprob(self):
+    def logpost(self):
         return self._logpost[:(self.niter // self.thin)]
 
     @property
@@ -147,3 +155,7 @@ class DefaultBackend(object):
     @property
     def acceptance_fraction(self):
         return self.acceptance / self.niter
+
+    @property
+    def jumpdict(self):
+        return self._jumpdict

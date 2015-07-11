@@ -1,8 +1,14 @@
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division
 
-__version__ = 2015.02
+__version__ = 2015.03
 
-from PTMCMCSampler import *
+__all__ = ["proposals", "backends", "Sampler", "Model",
+           "JumpCycle"]
+
+from . import backends, proposals, dictutils
+from .proposals import JumpCycle
+from .samplers import Sampler
+from .model import Model
 
 def test():
     # Run some tests here

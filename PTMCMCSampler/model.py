@@ -2,6 +2,8 @@
 
 from __future__ import division, print_function
 
+__all__ = ["Model"]
+
 import numpy as np
 
 class Model(object):
@@ -109,7 +111,7 @@ class Model(object):
 
         # Check the probabilities and make sure that no invalid samples were
         # accepted.
-        if not (np.isfinite(self._coords)
+        if not (np.isfinite(np.all(self._coords))
                 and np.isfinite(self._logprior)
                 and np.isfinite(self._loglike)):
             raise RuntimeError("An invalid proposal was accepted")
@@ -142,17 +144,16 @@ class Model(object):
 
 
 class _function_wrapper(object):
+    """
+    This is a hack to make the likelihood function pickleable when ``args``
+    or ``kwargs`` are also included.
 
-"""
-This is a hack to make the likelihood function pickleable when ``args``
-or ``kwargs`` are also included.
+    """
 
-"""
+    def __init__(self, f, args, kwargs):
+        self.f = f
+        self.args = args
+        self.kwargs = kwargs
 
-def __init__(self, f, args, kwargs):
-    self.f = f
-    self.args = args
-    self.kwargs = kwargs
-
-def __call__(self, x):
-    return self.f(x, *self.args, **self.kwargs)
+    def __call__(self, x):
+        return self.f(x, *self.args, **self.kwargs)
