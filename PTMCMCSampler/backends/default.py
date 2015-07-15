@@ -37,6 +37,7 @@ class DefaultBackend(object):
 
         # Clear the chain wrappers.
         self._coords = None
+        self._indicator = None
         self._buffer = None
         self._logprior = None
         self._loglike = None
@@ -75,6 +76,7 @@ class DefaultBackend(object):
         self.size = l = self.niter + n
         if self._coords is None:
             self._coords = np.empty((l // self.thin, d), dtype=np.float64)
+            self._indicator = np.empty((l, d), dtype=np.int)
             self._buffer = np.empty((self.bufsize, d), dtype=np.float64)
             self._logprior = np.empty(l // self.thin, dtype=np.float64)
             self._loglike = np.empty(l // self.thin, dtype=np.float64)
@@ -82,6 +84,7 @@ class DefaultBackend(object):
             self._acceptance = 0
         else:
             self._coords = np.resize(self._coords, (l, d))
+            self._indicator = np.resize(self._indicator, (l, d))
             self._logprior = np.resize(self._logprior, l)
             self._loglike = np.resize(self._loglike, l)
             self._logpost = np.resize(self._logpost, l)
@@ -106,6 +109,7 @@ class DefaultBackend(object):
             self._logpost[i // self.thin] = model.logpost
 
         self._buffer[i % self.bufsize] = model.coords
+        self._indicator[i] = np.array(model.indicator, dtype=np.int)
         self._acceptance += model.acceptance
         self.niter += 1
 
@@ -131,6 +135,10 @@ class DefaultBackend(object):
     @property
     def coords(self):
         return self._coords[:(self.niter // self.thin)]
+    
+    @property
+    def indicator(self):
+        return self._indicator[:self.niter]
 
     @property
     def buffer(self):

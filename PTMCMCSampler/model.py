@@ -24,6 +24,10 @@ class Model(object):
     :param logpriorfn:
         Log prior function
 
+    :param indicator:
+        Boolean indicator array determining which parameters to include
+        in likelihood function. Used for RJMCMC.
+
     :param loglargs: (optional)
         Additional non-keyword arguments to log likelihood function.
 
@@ -37,8 +41,8 @@ class Model(object):
         Additional nkeyword arguments to log prior function.
 
     """
-    def __init__(self, coords, pardict, loglikefn, logpriorfn, loglargs=[],
-                 loglkwargs={}, logpargs=[], logpkwargs={}):
+    def __init__(self, coords, pardict, loglikefn, logpriorfn, indicator=None,
+                 loglargs=[], loglkwargs={}, logpargs=[], logpkwargs={}):
 
         # wrap log likelihood and prior functions
         self._loglikefn = _function_wrapper(loglikefn, loglargs, loglkwargs)
@@ -52,7 +56,12 @@ class Model(object):
             raise ValueError('Parameter dictionary and coords do' 
                              ' not have same length')
         self.ndim = len(self.pardict)
-
+        
+        # boolean indicator array
+        if indicator is None:
+            self.indicator = np.array([1]*self.ndim, dtype=bool)
+        else:
+            self.indicator = self.indicator
 
         # Save the initial prior and likelihood values.
         self._logprior, self._loglike, self._logpost = self.logpostfn(self.coords) 
@@ -63,7 +72,7 @@ class Model(object):
                 and np.all(np.isfinite(self._loglike))):
             raise ValueError("Invalid (un-allowed) initial coordinates")
 
-    def logpostfn(self, coords, beta=1):
+    def logpostfn(self, coords, beta=1, **kwargs):
         """
         This method computes the natural logarithm of the posterior
         probability up to a constant. 
@@ -73,13 +82,17 @@ class Model(object):
 
         :param beta: (optional)
             Inverse temperature in PT scheme. Default is 1.
+
+        :param kwargs: (optional)
+            any additional keyword arguments to be passed to loglike
+            and logprior function.
         """
 
-        lp = self._logpriorfn(coords)
+        lp = self._logpriorfn(coords, **kwargs)
         if not np.isfinite(lp):
             return -np.inf, -np.inf, -np.inf
 
-        ll = self._loglikefn(coords,)
+        ll = self._loglikefn(coords, **kwargs)
         if not np.isfinite(ll):
             return lp, -np.inf, -np.inf
 
@@ -155,5 +168,7 @@ class _function_wrapper(object):
         self.args = args
         self.kwargs = kwargs
 
-    def __call__(self, x):
-        return self.f(x, *self.args, **self.kwargs)
+    def __call__(self, x, **kwargs):
+        kwargs1 = self.kwargs.copy()
+        kwargs1.update(kwargs)
+        return self.f(x, *self.args, **kwargs1)

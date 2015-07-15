@@ -98,13 +98,13 @@ class Sampler(object):
                 self.backend.update_model(model)
                 self.backend.update_proposal(p)
 
-            # Finish the chain if the total number of steps was reached.
             iter += 1
 
             # outpt progress
             if iter % thin == 0:
                 self.progress(iter, niter)
 
+            # Finish the chain if the total number of steps was reached.
             if iter >= niter:
                 return
 
