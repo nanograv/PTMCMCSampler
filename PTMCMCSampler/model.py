@@ -42,7 +42,8 @@ class Model(object):
 
     """
     def __init__(self, coords, pardict, loglikefn, logpriorfn, indicator=None,
-                 loglargs=[], loglkwargs={}, logpargs=[], logpkwargs={}):
+                 loglargs=[], loglkwargs={}, logpargs=[], logpkwargs={},
+                 beta=1):
 
         # wrap log likelihood and prior functions
         self._loglikefn = _function_wrapper(loglikefn, loglargs, loglkwargs)
@@ -64,13 +65,45 @@ class Model(object):
             self.indicator = self.indicator
 
         # Save the initial prior and likelihood values.
-        self._logprior, self._loglike, self._logpost = self.logpostfn(self.coords) 
+        self._logprior, self._loglike, self._logpost = self.logpostfn(self.coords, beta) 
         self.acceptance = True
 
         # Check the initial probabilities.
         if not (np.all(np.isfinite(self._logprior))
                 and np.all(np.isfinite(self._loglike))):
             raise ValueError("Invalid (un-allowed) initial coordinates")
+    
+    def logpriorfn(self, coords, **kwargs):
+        """
+        This method computes the natural logarithm of the prior
+        probability up to a constant. 
+        
+        :param coords:
+            The coordinates where the probability should be evaluated.
+
+        :param kwargs: (optional)
+            any additional keyword arguments to be passed to the
+            logprior function.
+        """
+
+        lp = self._logpriorfn(coords, **kwargs)
+        return lp
+    
+    def loglikefn(self, coords, **kwargs):
+        """
+        This method computes the natural logarithm of the likelihood
+        probability up to a constant. 
+        
+        :param coords:
+            The coordinates where the probability should be evaluated.
+
+        :param kwargs: (optional)
+            any additional keyword arguments to be passed to the
+            loglike function.
+        """
+
+        ll = self._loglikefn(coords, **kwargs)
+        return ll
 
     def logpostfn(self, coords, beta=1, **kwargs):
         """
@@ -87,7 +120,6 @@ class Model(object):
             any additional keyword arguments to be passed to loglike
             and logprior function.
         """
-
         lp = self._logpriorfn(coords, **kwargs)
         if not np.isfinite(lp):
             return -np.inf, -np.inf, -np.inf
