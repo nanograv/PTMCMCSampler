@@ -324,7 +324,7 @@ class PTSampler(object):
             if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
                 try:
                     Neff = iter / \
-                            np.max([acor.acor(self._AMbuffer[self.burn:(iter - 1), ii])[0]
+                            np.nanmax([acor.acor(self._AMbuffer[self.burn:(iter - 1), ii])[0]
                                           for ii in range(self.ndim)])
                     # print '\n {0} effective samples'.format(Neff)
                 except NameError:
