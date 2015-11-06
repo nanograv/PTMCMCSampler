@@ -535,7 +535,7 @@ class PTSampler(object):
         # check if next lowest temperature is ready to swap
         elif self.MPIrank > 0:
 
-            readyToSwap = self.comm.Iprobe(source=self.MPIrank - 1)
+            readyToSwap = self.comm.Iprobe(source=self.MPIrank - 1, tag=222)
             # trick to get around processor using 100% cpu while waiting
             time.sleep(0.000001)
 
