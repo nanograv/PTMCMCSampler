@@ -83,8 +83,6 @@ class AsciiBackend(DefaultBackend):
         super(AsciiBackend, self).update_model(model)
 
         i = self.niter
-        self.indfile.write('\t'.join(['%d' % (ind) for ind in 
-                                      np.array(model.indicator, dtype=np.int)]))
         self.indfile.write('\n')
         if i % self.thin == 0:
             self.chainfile.write('\t'.join(['%22.22f' % (c) for c in model.coords]))
@@ -92,6 +90,10 @@ class AsciiBackend(DefaultBackend):
             self.probfile.write('%22.22f %22.22f %22.22f\n' % (model.logprior, 
                                                                model.loglike,
                                                                model.logpost))
+            self.indfile.write('\t'.join(['%d' % (ind) for ind in 
+                                          np.array(model.indicator, dtype=np.int)]))
+            self.indfile.write('\n')
+
             self.chainfile.close()
             self.probfile.close()
             self.indfile.close()

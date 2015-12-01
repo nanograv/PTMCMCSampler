@@ -141,7 +141,7 @@ class SingleAdaptiveGaussianProposal(MHProposal):
             indexmap = dt.match_dict_values(pardict, tmpdict)
         else:
             indexmap = self.active_parameter
-
+        
         q[indexmap] += np.random.randn() * self.sigma[self.active_parameter]
 
         return q, lqxy
