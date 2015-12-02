@@ -83,7 +83,6 @@ class AsciiBackend(DefaultBackend):
         super(AsciiBackend, self).update_model(model)
 
         i = self.niter
-        self.indfile.write('\n')
         if i % self.thin == 0:
             self.chainfile.write('\t'.join(['%22.22f' % (c) for c in model.coords]))
             self.chainfile.write('\n')
