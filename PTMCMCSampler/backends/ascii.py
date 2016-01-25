@@ -26,12 +26,16 @@ class AsciiBackend(DefaultBackend):
         Buffer size for adaptive jumps. Default value is
         10000.
 
+    :param isave: (optional)
+        Number of samples before file saves. Default value
+        is 1000
+
     .. note:: For now this class stil keeps numpy arrays and only
               saves to ascii files. In the future it will do everything
               through ascii files.
     """
 
-    def __init__(self, outdir, thin=10, bufsize=10000):
+    def __init__(self, outdir, thin=10, bufsize=10000, isave=1000):
 
         self._outdir = outdir
         if not os.path.exists(outdir):
@@ -41,6 +45,7 @@ class AsciiBackend(DefaultBackend):
                 pass
 
         super(AsciiBackend, self).__init__(thin, bufsize)
+        self.isave = isave
 
     def reset(self):
         """
@@ -76,22 +81,27 @@ class AsciiBackend(DefaultBackend):
         :param model:
             The :class:`Model` class
         """
-        self.chainfile = open(self._outdir + '/chain.txt', 'a+')
-        self.probfile = open(self._outdir + '/prob.txt', 'a+')
-        self.indfile = open(self._outdir + '/indicator.txt', 'a+')
-
         super(AsciiBackend, self).update_model(model)
 
         i = self.niter
-        if i % self.thin == 0:
-            self.chainfile.write('\t'.join(['%22.22f' % (c) for c in model.coords]))
-            self.chainfile.write('\n')
-            self.probfile.write('%22.22f %22.22f %22.22f\n' % (model.logprior, 
-                                                               model.loglike,
-                                                               model.logpost))
-            self.indfile.write('\t'.join(['%d' % (ind) for ind in 
-                                          np.array(model.indicator, dtype=np.int)]))
-            self.indfile.write('\n')
+        if i % self.isave == 0 and i > 1:
+
+            # open files for appending
+            self.chainfile = open(self._outdir + '/chain.txt', 'a+')
+            self.probfile = open(self._outdir + '/prob.txt', 'a+')
+            self.indfile = open(self._outdir + '/indicator.txt', 'a+')
+            
+            for jj in range(i-self.isave, i, self.thin):
+                ind = jj // self.thin
+                self.chainfile.write('\t'.join(['%22.22f' % (self._coords[ind, kk]) 
+                                                for kk in range(self.ndim)]))
+                self.chainfile.write('\n')
+                self.probfile.write('%22.22f %22.22f %22.22f\n' % (self._logprior[ind], 
+                                                                   self._loglike[ind],
+                                                                   self._logpost[ind]))
+                self.indfile.write('\t'.join(['%d' % (self._indicator[jj, kk]) 
+                                              for kk in range(self.ndim)])) 
+                self.indfile.write('\n')
 
             self.chainfile.close()
             self.probfile.close()
