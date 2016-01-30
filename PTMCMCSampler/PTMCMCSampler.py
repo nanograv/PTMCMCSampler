@@ -514,34 +514,41 @@ class PTSampler(object):
             swapProposed = 1
 
             # send current likelihood for swap proposal
-            self.comm.send(lnlike0, dest=self.MPIrank + 1)
+            self.comm.send(lnlike0, dest=self.MPIrank + 1, tag=18)
 
-            # determine if swap was accepted
-            swapAccepted = self.comm.recv(source=self.MPIrank + 1)
+            received = self.comm.Iprobe(source=self.MPIrank + 1, tag=888)
+            # trick to get around processor using 100% cpu while waiting
+            time.sleep(0.000001)
 
-            # perform swap
-            if swapAccepted:
+            #print("Received = ", received, self.MPIrank)
 
-                # exchange likelihood
-                lnlike0 = self.comm.recv(source=self.MPIrank + 1)
+            if received:
+                ## determine if swap was accepted
+                swapAccepted = self.comm.recv(source=self.MPIrank + 1, tag=888)
 
-                # exchange parameters
-                self.comm.send(p0, dest=self.MPIrank + 1)
-                p0 = self.comm.recv(source=self.MPIrank + 1)
+                # perform swap
+                if swapAccepted:
 
-                # calculate new posterior values
-                lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
+                    # exchange likelihood
+                    lnlike0 = self.comm.recv(source=self.MPIrank + 1, tag=18)
+
+                    # exchange parameters
+                    self.comm.send(p0, dest=self.MPIrank + 1, tag=19)
+                    p0 = self.comm.recv(source=self.MPIrank + 1, tag=19)
+
+                    # calculate new posterior values
+                    lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
 
         # check if next lowest temperature is ready to swap
         elif self.MPIrank > 0:
 
-            readyToSwap = self.comm.Iprobe(source=self.MPIrank - 1)
+            readyToSwap = self.comm.Iprobe(source=self.MPIrank - 1, tag=18)
             # trick to get around processor using 100% cpu while waiting
             time.sleep(0.000001)
 
             # hotter chain decides acceptance
             if readyToSwap:
-                newlnlike = self.comm.recv(source=self.MPIrank - 1)
+                newlnlike = self.comm.recv(source=self.MPIrank - 1, tag=18)
 
                 # determine if swap is accepted and tell other chain
                 logChainSwap = (1 / self.ladder[self.MPIrank - 1] -
@@ -554,18 +561,18 @@ class PTSampler(object):
                     swapAccepted = 0
 
                 # send out result
-                self.comm.send(swapAccepted, dest=self.MPIrank - 1)
+                self.comm.send(swapAccepted, dest=self.MPIrank - 1, tag=888)
 
                 # perform swap
                 if swapAccepted:
 
                     # exchange likelihood
-                    self.comm.send(lnlike0, dest=self.MPIrank - 1)
+                    self.comm.send(lnlike0, dest=self.MPIrank - 1, tag=18)
                     lnlike0 = newlnlike
 
                     # exchange parameters
-                    self.comm.send(p0, dest=self.MPIrank - 1)
-                    p0 = self.comm.recv(source=self.MPIrank - 1)
+                    self.comm.send(p0, dest=self.MPIrank - 1, tag=19)
+                    p0 = self.comm.recv(source=self.MPIrank - 1, tag=19)
 
                     # calculate new posterior values
                     lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
@@ -978,6 +985,7 @@ class PTSampler(object):
         np.random.shuffle(index)
 
         # randomize proposal cycle
+        # TODO: randomizedPropCycle is not used anymore
         self.randomizedPropCycle = [self.propCycle[ind] for ind in index]
 
     # call proposal functions from cycle
