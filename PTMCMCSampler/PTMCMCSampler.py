@@ -526,8 +526,11 @@ class PTSampler(object):
                 lnlike0 = self.comm.recv(source=self.MPIrank + 1, tag=18)
 
                 # exchange parameters
-                self.comm.send(p0, dest=self.MPIrank + 1, tag=19)
-                p0 = self.comm.recv(source=self.MPIrank + 1, tag=19)
+                pnew = np.empty(self.ndim)
+                self.comm.Sendrecv(p0, dest=self.MPIrank+1, sendtag=19, 
+                              recvbuf=pnew, source=self.MPIrank+1, 
+                              recvtag=19)
+                p0 = pnew
 
                 # calculate new posterior values
                 lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
@@ -564,8 +567,11 @@ class PTSampler(object):
                     lnlike0 = newlnlike
 
                     # exchange parameters
-                    self.comm.send(p0, dest=self.MPIrank - 1, tag=19)
-                    p0 = self.comm.recv(source=self.MPIrank - 1, tag=19)
+                    pnew = np.empty(self.ndim)
+                    self.comm.Sendrecv(p0, dest=self.MPIrank-1, sendtag=19, 
+                                  recvbuf=pnew, source=self.MPIrank-1, 
+                                  recvtag=19)
+                    p0 = pnew
 
                     # calculate new posterior values
                     lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
