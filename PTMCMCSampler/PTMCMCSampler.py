@@ -379,7 +379,7 @@ class PTSampler(object):
         getCovariance = self.comm.Iprobe(source=0, tag=111)
         time.sleep(0.000001)
         if getCovariance and self.MPIrank > 0:
-            self.cov = self.comm.recv(source=0, tag=111)
+            self.cov[:,:] = self.comm.recv(source=0, tag=111)
             for ct, group in enumerate(self.groups):
                 covgroup = np.zeros((len(group), len(group)))
                 for ii in range(len(group)):
@@ -689,7 +689,7 @@ class PTSampler(object):
             self.M2 += np.outer(diff,
                                 (self._AMbuffer[iter - mem + ii, :] - self.mu))
 
-        self.cov = self.M2 / (it - 1)
+        self.cov[:,:] = self.M2 / (it - 1)
 
         # do svd on parameter groups
         for ct, group in enumerate(self.groups):
