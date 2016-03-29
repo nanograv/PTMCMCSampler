@@ -84,17 +84,11 @@ class GradientJump(object):
         :grad:      Initial gradient
         :epsilon:   Step size
 
-
-        OUTPUTS
-        -------
-        thetaprime: ndarray[float, ndim=1]
-            new parameter position
-        rprime: ndarray[float, ndim=1]
-            new momentum
-        gradprime: float
-            new gradient
-        logpprime: float
-            new lnp
+        output
+        thetaprime: new parameter position
+        rprime:     new momentum
+        gradprime:  new gradient
+        logpprime:  new log-probability
         """
 
         rprime = r + 0.5 * epsilon * grad                   # half step in r
@@ -116,7 +110,7 @@ class MALAJump(GradientJump):
     def __init__(self, loglik_grad, logprior_grad, mm_inv, nburn=100,
             stepsize=0.1):
         """Initialize the MALA Jump"""
-        super(MALAJump, self).__init__(loglik_grad, logprior_grad, mm_inv, nburn=100)
+        super(MALAJump, self).__init__(loglik_grad, logprior_grad, mm_inv, nburn=nburn)
 
         self.name = "MALAJump"
         self.epsilon = stepsize
@@ -133,11 +127,13 @@ class MALAJump(GradientJump):
         q = x.copy()
         logp, grad = self.func_grad(x)
 
-        # Update the mass matrix when in burn-in stage
-        if iter <= self.nburn:
-            self.update_cf()
-
         raise NotImplementedError("MALAJump is not fully implemented!")
+
+        # Update the mass matrix when in burn-in stage
+        # Currently, there is a problem with adjusting the mass matrix.
+        # Stepsize and mass matrix need to be tuned together?
+        #if iter <= self.nburn:
+        #    self.update_cf()
         """
         hess = np.diag(np.diag(hessianLike(x)))
         try:
@@ -163,7 +159,7 @@ class HMCJump(GradientJump):
     def __init__(self, loglik_grad, logprior_grad, mm_inv, nburn=100,
             stepsize=0.1, nminsteps=10, nmaxsteps=300):
         """Initialize the MALA Jump"""
-        super(HMCJump, self).__init__(loglik_grad, logprior_grad, mm_inv, nburn=100)
+        super(HMCJump, self).__init__(loglik_grad, logprior_grad, mm_inv, nburn=nburn)
 
         self.name = "HMCJump"
         self.epsilon = stepsize
@@ -181,8 +177,10 @@ class HMCJump(GradientJump):
         self.beta = beta
 
         # Update the mass matrix when in burn-in stage
-        if iter <= self.nburn:
-            self.update_cf()
+        # Currently, there is a problem with adjusting the mass matrix.
+        # Stepsize and mass matrix need to be tuned together?
+        #if iter <= self.nburn:
+        #    self.update_cf()
 
         # Initial starting position
         q0 = x.copy()
@@ -298,7 +296,7 @@ class Trajectory(object):
             raise ValueError("Index not found")
 
 
-class NUTSJump(object):
+class NUTSJump(GradientJump):
     """Class for No-U-Turn-Sampling Hamiltonian Monte Carlo jumps"""
     
     def __init__(self, loglik_grad, logprior_grad, mm_inv, nburn=100,
@@ -313,20 +311,13 @@ class NUTSJump(object):
         :write_burnin:  Whether we are writing the burn-in trajectories
         
         """
+        super(NUTSJump, self).__init__(loglik_grad, logprior_grad, mm_inv, nburn=100)
         
-        self._loglik_grad = loglik_grad             # Log-likelihood & gradient
-        self._logprior_grad = logprior_grad         # Log-prior & gradient
-        self.mm_inv = mm_inv                        # Inverse mass-matrix
-        self.cov_cf = np.eye(len(self.mm_inv))      # Cholesky factor of mm_inv
-        self.nburn=nburn                            # Nr. of burn-in steps
-        self.ndim = len(self.mm_inv)                # Number of dimensions
         self.trajectoryDir=trajectoryDir            # Trajectory directory
         self.write_burnin = write_burnin            # Write burnin trajectories?
 
         self.name = "NUTSJump"
 
-        self.epsilon = None                         # Step-size
-        self.beta = 1.0                             # Inverse temperature
         self.delta = delta                          # Target acceptance rate
 
         self.traj = Trajectory(self.ndim, bufsize=1000) # Trajectory buffer
@@ -352,19 +343,11 @@ class NUTSJump(object):
             elif not os.path.isdir(trajectoryDir):
                 os.mkdir(trajectoryDir)
 
-    @property
-    def __name__(self):
-        return self.name
-
-    def func_grad(self, x):
-        """Log-prob and gradient, corrected for temperature"""
-        ll, ll_grad = self._loglik_grad(x)
-        lp, lp_grad = self._logprior_grad(x)
-
-        return self.beta*ll+lp, self.beta*ll_grad+lp_grad
-
     def update_cf(self):
-        """Update the Cholesky factor of the inverse mass matrix"""
+        """Update the Cholesky factor of the inverse mass matrix
+        
+        NOTE: this function is different from the one in GradientJump!
+        """
         # Since we are adaptively tuning the step size epsilon, we should at
         # least keep the determinant of this guy equal to what it was before.
         new_cov_cf = sl.cholesky(self.mm_inv, lower=True)
@@ -373,54 +356,6 @@ class NUTSJump(object):
         ldet_new = np.sum(np.log(np.diag(new_cov_cf)))
 
         self.cov_cf = np.exp((ldet_old-ldet_new)/self.ndim) * new_cov_cf
-
-    def draw_momenta(self):
-        """Draw new momentum variables"""
-
-        xi = np.random.randn(len(self.mm_inv))
-        return np.dot(self.cov_cf, xi)
-
-    def loghamiltonian(self, logl, r):
-        """Value of the Hamiltonian, given a position and momentum value"""
-        try:
-            newdot = np.dot(r, sl.cho_solve((self.cov_cf, True), r))
-        except ValueError as err:
-            return np.nan
-        return logl-0.5*newdot
-
-    def posmom_inprod(self, theta, r):
-        try:
-            return np.dot(theta, sl.cho_solve((self.cov_cf, True), r))
-        except ValueError as err:
-            return np.nan
-
-    def leapfrog(self, theta, r, grad, epsilon):
-        """Perfom a leapfrog jump in the Hamiltonian space
-
-        :theta:     Initial parameter position
-        :r:         Initial momentum
-        :grad:      Initial gradient
-        :epsilon:   Step size
-
-
-        OUTPUTS
-        -------
-        thetaprime: ndarray[float, ndim=1]
-            new parameter position
-        rprime: ndarray[float, ndim=1]
-            new momentum
-        gradprime: float
-            new gradient
-        logpprime: float
-            new lnp
-        """
-
-        rprime = r + 0.5 * epsilon * grad                   # half step in r
-        thetaprime = theta + epsilon * rprime               # step in theta
-        logpprime, gradprime = self.func_grad(thetaprime)   # compute gradient
-        rprime = rprime + 0.5 * epsilon * gradprime         # half step in r
-
-        return thetaprime, rprime, gradprime, logpprime
 
     def find_reasonable_epsilon(self, theta0, grad0, logp0):
         """Heuristic for choosing an initial value of epsilon"""
@@ -441,7 +376,6 @@ class NUTSJump(object):
         epsilon = 0.5 * k * epsilon
 
         acceptprob = np.exp(self.loghamiltonian(logpprime, rprime) - self.loghamiltonian(logp0, r0))
-                
 
         a = 2. * float((acceptprob > 0.5)) - 1.
         # Keep moving epsilon in that direction until acceptprob crosses 0.5.
@@ -483,9 +417,8 @@ class NUTSJump(object):
 
         return cont
 
-
     def build_tree(self, theta, r, grad, logu, v, j, epsilon, joint0, ind, traj, force_trajlen):
-        """The main recursion tree"""
+        """The main recursion tree. Literally from Hoffman and Gelman (2011)."""
 
         if (j == 0):
             # Base case: Take a single leapfrog step in the direction v.
@@ -577,8 +510,10 @@ class NUTSJump(object):
             self.epsilon = self.force_epsilon
 
         # Update the mass matrix when in burn-in stage
-        if iter <= self.nburn:
-            self.update_cf()
+        # Currently, there is a problem with adjusting the mass matrix.
+        # Stepsize and mass matrix need to be tuned together?
+        #if iter <= self.nburn:
+        #    self.update_cf()
 
         # Set the start of the trajectory
         r0 = self.draw_momenta()
@@ -632,7 +567,6 @@ class NUTSJump(object):
             s = sprime and self.stop_criterion(thetaminus, thetaplus, rminus, rplus, self.force_trajlen, max(trajind_plus, trajind_minus))
             # Increment depth.
             j += 1
-
 
         # Do adaptation of epsilon if we're still doing burn-in.
         if self.force_epsilon is None:
