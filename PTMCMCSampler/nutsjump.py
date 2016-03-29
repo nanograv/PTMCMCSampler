@@ -126,12 +126,14 @@ class HMCJump(object):
         self.t0 = 10
         self.kappa = 0.75
         self.mu = None
-        self.epsilonbar = 1
+        self.epsilonbar = 1.
         self.Hbar = 0
 
         # Parameters to force the trajectories to be pre-set
         self.force_trajlen = force_trajlen
         self.force_epsilon = force_epsilon
+        if self.force_epsilon is not None:
+            self.epsilonbar = self.force_epsilon
 
         # Create the trajectory directory, if it does not exist yet
         if self.trajectoryDir is not None:
@@ -140,7 +142,11 @@ class HMCJump(object):
             elif not os.path.isdir(trajectoryDir):
                 os.mkdir(trajectoryDir)
 
-    def self.func_grad(self, x):
+    @property
+    def __name__(self):
+        return "HMCJump"
+
+    def func_grad(self, x):
         """Log-prob and gradient, corrected for temperature"""
         ll, ll_grad = self._loglik_grad(x)
         lp, lp_grad = self._logprior_grad(x)
@@ -160,14 +166,11 @@ class HMCJump(object):
 
     def loghamiltonian(self, logl, r):
         """Value of the Hamiltonian, given a position and momentum value"""
-
-        #newr = sl.cho_solve((self.cov_cf, True), r)
-        newdot = np.dot(r, sl.cholve((self.cov_cf, True), r))
-        return 0.5*np.dot(newr, newr)-logl
+        newdot = np.dot(r, sl.cho_solve((self.cov_cf, True), r))
+        return logl-0.5*newdot
 
     def posmom_inprod(self, theta, r):
-        #Li = sl.solve_triangular(L, np.eye(len(L)), trans=0, lower=True)
-        return np.dot(theta, sl.cho_solve(self.cov_cf, r))
+        return np.dot(theta, sl.cho_solve((self.cov_cf, True), r))
 
     def leapfrog(self, theta, r, grad, epsilon):
         """Perfom a leapfrog jump in the Hamiltonian space
@@ -201,7 +204,6 @@ class HMCJump(object):
         """Heuristic for choosing an initial value of epsilon"""
 
         epsilon = 1.
-        #r0 = np.random.normal(0., 1., len(theta0))
         r0 = self.draw_momenta()
 
         # Figure out what direction we should be moving epsilon.
@@ -216,9 +218,8 @@ class HMCJump(object):
 
         epsilon = 0.5 * k * epsilon
 
-        #acceptprob = np.exp(logpprime - logp0 - 0.5 * (np.dot(rprime, rprime.T) - np.dot(r0, r0.T)))
-        acceptprob = np.exp(self.loghamiltonian(logp0, r0) -
-                self.loghamiltonian(logpprime, rprime))
+        acceptprob = np.exp(self.loghamiltonian(logpprime, rprime) - self.loghamiltonian(logp0, r0))
+                
 
         a = 2. * float((acceptprob > 0.5)) - 1.
         # Keep moving epsilon in that direction until acceptprob crosses 0.5.
@@ -226,11 +227,7 @@ class HMCJump(object):
             epsilon = epsilon * (2. ** a)
             _, rprime, _, logpprime = self.leapfrog(theta0, r0, grad0, epsilon)
 
-            #acceptprob = np.exp(logpprime - logp0 - 0.5 * ( np.dot(rprime, rprime.T) - np.dot(r0, r0.T)))
-            acceptprob = np.exp(self.loghamiltonian(logp0, r0) -
-                    self.loghamiltonian(logpprime, rprime))
-
-        #print "find_reasonable_epsilon=", epsilon
+            acceptprob = np.exp(self.loghamiltonian(logpprime, rprime) - self.loghamiltonian(logp0, r0))
 
         return epsilon
 
@@ -268,6 +265,7 @@ class HMCJump(object):
     def build_tree(self, theta, r, grad, logu, v, j, epsilon, joint0, ind, traj, force_trajlen):
         """The main recursion tree"""
 
+        # print("B epsilon = ", epsilon)
         if (j == 0):
             # Base case: Take a single leapfrog step in the direction v.
             thetaprime, rprime, gradprime, logpprime = self.leapfrog(theta, r, grad, v * epsilon)
@@ -333,8 +331,9 @@ class HMCJump(object):
     def __call__(self, x, iter, beta):
         """Take one HMC trajectory step"""
 
-        if len(np.shape(theta0)) > 1:
-            raise ValueError('theta0 is expected to be a 1-D array')
+        x = np.atleast_1d(x)
+        if len(np.shape(x)) > 1:
+            raise ValueError('x is expected to be a 1-D array')
 
         # Always start evaluating the distribution and gradient.
         # Potential speed-up: obtain these values from elsewhere, since we must
@@ -344,11 +343,18 @@ class HMCJump(object):
         if self.epsilon is None and self.force_epsilon is None:
             # First time doing an HMC jump
             self.epsilon = self.find_reasonable_epsilon(x, grad, logp)
-
-            self.mu = np.log(10. * epsilon)     # For dual averaging
+            # print("Find reasonable epsilon: ", self.epsilon)
+            self.mu = np.log(10. * self.epsilon)     # For dual averaging
+        elif self.epsilon is None and self.force_epsilon is not None:
+            # Force epsilon to be a certain value
+            self.epsilon = self.force_epsilon
+            self.mu = np.log(10. * self.epsilon)     # For dual averaging
         elif self.force_epsilon is not None:
             # Force epsilon to be a certain value
             self.epsilon = self.force_epsilon
+
+        # Update the mass matrix
+        self.update_cf()
 
         # Set the start of the trajectory
         r0 = self.draw_momenta()
@@ -373,7 +379,7 @@ class HMCJump(object):
 
         # Reset the trajectory buffer
         self.traj.reset()
-        self.traj.add_sample(thetaminus, traj.length())
+        self.traj.add_sample(thetaminus, self.traj.length())
         self.trajind, trajind_minus, trajind_plus, trajind_prime = 0, 0, 0, 0
 
         while(s==1):
@@ -381,10 +387,11 @@ class HMCJump(object):
             v = int(2 * (np.random.uniform() < 0.5) - 1)
 
             # Double the size of the tree.
+            # print("W epsilon = ", self.epsilon)
             if (v == -1):
-                thetaminus, rminus, gradminus, _, _, _, thetaprime, gradprime, logpprime, nprime, sprime, alpha, nalpha, trajind_plus, trajind_minus, trajind_prime = self.build_tree(thetaminus, rminus, gradminus, logu, v, j, self.epsilon, joint, trajind_minus, traj, force_trajlen)
+                thetaminus, rminus, gradminus, _, _, _, thetaprime, gradprime, logpprime, nprime, sprime, alpha, nalpha, trajind_plus, trajind_minus, trajind_prime = self.build_tree(thetaminus, rminus, gradminus, logu, v, j, self.epsilon, joint, trajind_minus, self.traj, self.force_trajlen)
             else:
-                _, _, _, thetaplus, rplus, gradplus, thetaprime, gradprime, logpprime, nprime, sprime, alpha, nalpha, trajind_plus, trajind_minus, trajind_prime = self.build_tree(thetaplus, rplus, gradplus, logu, v, j, self.epsilon, joint, trajind_plus, traj, force_trajlen)
+                _, _, _, thetaplus, rplus, gradplus, thetaprime, gradprime, logpprime, nprime, sprime, alpha, nalpha, trajind_plus, trajind_minus, trajind_prime = self.build_tree(thetaplus, rplus, gradplus, logu, v, j, self.epsilon, joint, trajind_plus, self.traj, self.force_trajlen)
 
             # Use Metropolis-Hastings to decide whether or not to move to a
             # point from the half-tree we just generated.
@@ -398,7 +405,7 @@ class HMCJump(object):
             # Update number of valid points we've seen.
             n += nprime
             # Decide if it's time to stop.
-            s = sprime and self.stop_criterion(thetaminus, thetaplus, rminus, rplus, force_trajlen, max(trajind_plus, trajind_minus))
+            s = sprime and self.stop_criterion(thetaminus, thetaplus, rminus, rplus, self.force_trajlen, max(trajind_plus, trajind_minus))
             # Increment depth.
             j += 1
 
@@ -410,15 +417,16 @@ class HMCJump(object):
 
             if (iter <= self.nburn):
                 # Still in the burn-in phase. So adjust epsilon
-                self.epsilon = np.exp(self.mu - np.sqrt(m) / self.gamma * self.Hbar)
+                # QUESTION: use internal iter, for just this jump??????
+                self.epsilon = np.exp(self.mu - np.sqrt(iter) / self.gamma * self.Hbar)
                 eta = iter ** -self.kappa
-                self.epsilonbar = np.exp((1. - eta) * np.log(self.epsilonbar) + eta * log(self.epsilon))
+                self.epsilonbar = np.exp((1. - eta) * np.log(self.epsilonbar) + eta * np.log(self.epsilon))
+
             else:
                 self.epsilon = self.epsilonbar
 
         if self.trajectoryDir is not None:
             # Write the whole trajectory to file
-            # for m in range(1, M + Madapt):
             if iter <= self.nburn and self.write_burnin:
                 trajfile_plus = os.path.join(self.trajectoryDir,
                         'burnin-plus-{num:06d}.txt'.format(num=iter))
@@ -446,54 +454,4 @@ class HMCJump(object):
         qxy = logp - lnprob
 
         return sample, qxy
-
-
-
-"""
-    # Example of what the JUMP should look like
-    # hamiltonian monte-carlo jump
-    def HMCJump_example(x, iter, beta):
-
-
-        q0 = x.copy()
-        qxy = 0
-
-        # stepsize
-        eps = 0.4
-
-        H = hessianLike(q0)
-        try:
-            #u, s, v = np.linalg.svd(H)
-            cholesky = sl.cholesky(H, lower=True)
-        except LinAlgError:
-            return x, 0
-        #H12 = np.dot(u, (np.sqrt(s)*u).T)
-        H12 = cholesky
-
-        # number of steps to use
-        n = int(np.random.uniform(20, 100))
-
-        # draw momentum variables
-        p = np.random.randn(len(q0))
-        p0 = p.copy()
-
-        # begin leapfrog
-        grad0 = gradientLike(q0)
-        for ii in range(n):
-
-            p12 = p + eps/2 * np.dot(H12, grad0)
-            q = q0 + eps*np.dot(H12, p12)
-            q0 = q.copy()
-
-            grad0 = gradientLike(q)
-            p = p12 + eps/2 * np.dot(H12, grad0)
-
-            # reject if threshold is reached (what should this be?)
-
-        qxy = np.sum(p0**2/2) - np.sum(p**2/2)
-
-        return q, qxy
-"""
-
-
 

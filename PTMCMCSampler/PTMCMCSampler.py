@@ -8,6 +8,7 @@ import scipy.stats as ss
 import os
 import sys
 import time
+from nutsjump import HMCJump
 
 try:
     from mpi4py import MPI
@@ -47,6 +48,8 @@ class PTSampler(object):
     for log likelihood
     @param logpargs: any additional arguments (apart from the parameter vector) for
     log like prior
+    @param logl_grad: log-likelihood function, including gradients
+    @param logp_grad: prior function, including gradients
     @param logpkwargs: any additional keyword arguments (apart from the parameter vector)
     for log prior
     @param outDir: Full path to output directory for chain files (default = ./chains)
@@ -56,7 +59,8 @@ class PTSampler(object):
     """
 
     def __init__(self, ndim, logl, logp, cov, groups=None, loglargs=[], loglkwargs={},
-                 logpargs=[], logpkwargs={}, comm=MPI.COMM_WORLD,
+                 logpargs=[], logpkwargs={}, logl_grad=None, logp_grad=None,
+                 comm=MPI.COMM_WORLD,
                  outDir='./chains', verbose=True, resume=False):
 
         # MPI initialization
@@ -67,6 +71,10 @@ class PTSampler(object):
         self.ndim = ndim
         self.logl = _function_wrapper(logl, loglargs, loglkwargs)
         self.logp = _function_wrapper(logp, logpargs, logpkwargs)
+        if logl_grad is not None and logp_grad is not None:
+            self.logl_grad = _function_wrapper(logl_grad, loglargs, loglkwargs)
+            self.logp_grad = _function_wrapper(logp_grad, logpargs, logpkwargs)
+
         self.outDir = outDir
         self.verbose = verbose
         self.resume = resume
@@ -109,7 +117,8 @@ class PTSampler(object):
 
     def initialize(self, Niter, ladder=None, Tmin=1, Tmax=None, Tskip=100,
                    isave=1000, covUpdate=1000, KDEupdate=10000, SCAMweight=30,
-                   AMweight=20, DEweight=50, KDEweight=0, burn=10000,
+                   AMweight=20, DEweight=50, KDEweight=0, HMCweight=20,
+                   burn=10000,
                    maxIter=None, thin=10, i0=0, neff=100000,
                    writeHotChains=False, hotChain=False):
         """
@@ -156,6 +165,12 @@ class PTSampler(object):
             self._DEbuffer = np.zeros((self.burn, self.ndim))
 
         # ##### setup default jump proposal distributions ##### #
+
+        if self.logl_grad is not None and self.logp_grad is not None:
+            hmcjump = HMCJump(self.logl_grad, self.logp_grad, self.cov,
+                    self.burn, trajectoryDir=None, write_burnin=False,
+                    force_trajlen=None, force_epsilon=None, delta=0.6)
+            self.addProposalToCycle(hmcjump, HMCweight)
 
         # add SCAM
         self.addProposalToCycle(
@@ -234,7 +249,7 @@ class PTSampler(object):
 
     def sample(self, p0, Niter, ladder=None, Tmin=1, Tmax=None, Tskip=100,
                isave=1000, covUpdate=1000, KDEupdate=1000, SCAMweight=20,
-               AMweight=20, DEweight=20, KDEweight=0, burn=10000,
+               AMweight=20, DEweight=20, KDEweight=0, HMCweight=20, burn=10000,
                maxIter=None, thin=10, i0=0, neff=100000,
                writeHotChains=False, hotChain=False):
         """
@@ -277,7 +292,8 @@ class PTSampler(object):
                             Tskip=Tskip, isave=isave, covUpdate=covUpdate,
                             KDEupdate=KDEupdate, SCAMweight=SCAMweight,
                             AMweight=AMweight, DEweight=DEweight, 
-                            KDEweight=KDEweight, burn=burn,
+                            KDEweight=KDEweight, HMCweight=HMCweight,
+                            burn=burn,
                             maxIter=maxIter, thin=thin, i0=i0, 
                             neff=neff, writeHotChains=writeHotChains,
                             hotChain=hotChain)
@@ -656,7 +672,8 @@ class PTSampler(object):
             # now write jump statistics for each jump proposal
             for jump in self.jumpDict:
                 fout = open(self.outDir + '/' + jump + '_jump.txt', 'a+')
-                fout.write('%g\n'%(self.jumpDict[jump][1]/self.jumpDict[jump][0]))
+                fout.write('%g\n'%(self.jumpDict[jump][1]/max(1,
+                        self.jumpDict[jump][0])))
                 fout.close()
 
 
