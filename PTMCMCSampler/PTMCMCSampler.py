@@ -74,6 +74,9 @@ class PTSampler(object):
         if logl_grad is not None and logp_grad is not None:
             self.logl_grad = _function_wrapper(logl_grad, loglargs, loglkwargs)
             self.logp_grad = _function_wrapper(logp_grad, logpargs, logpkwargs)
+        else:
+            self.logl_grad = None
+            self.logp_grad = None
 
         self.outDir = outDir
         self.verbose = verbose
