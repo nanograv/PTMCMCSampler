@@ -8,7 +8,7 @@ import scipy.stats as ss
 import os
 import sys
 import time
-from nutsjump import HMCJump
+from nutsjump import NUTSJump, HMCJump
 
 try:
     from mpi4py import MPI
@@ -120,8 +120,9 @@ class PTSampler(object):
 
     def initialize(self, Niter, ladder=None, Tmin=1, Tmax=None, Tskip=100,
                    isave=1000, covUpdate=1000, KDEupdate=1e9, SCAMweight=30,
-                   AMweight=20, DEweight=50, KDEweight=0, HMCweight=20,
-                   burn=10000,
+                   AMweight=20, DEweight=50, KDEweight=0,
+                   NUTSweight=20, HMCweight=20,
+                   burn=10000, HMCstepsize=0.1, HMCsteps=300,
                    maxIter=None, thin=10, i0=0, neff=100000,
                    writeHotChains=False, hotChain=False):
         """
@@ -169,11 +170,20 @@ class PTSampler(object):
 
         # ##### setup default jump proposal distributions ##### #
 
+        # Gradient-based jumps
         if self.logl_grad is not None and self.logp_grad is not None:
+            # Perhaps have an option to adaptively tune the mass matrix?
+            # Now that is done by defaulk
             hmcjump = HMCJump(self.logl_grad, self.logp_grad, self.cov,
+                    self.burn, stepsize=HMCstepsize, nminsteps=10,
+                    nmaxsteps=HMCsteps)
+            self.addProposalToCycle(hmcjump, HMCweight)
+
+            # Target acceptance rate (delta) should be optimal for 0.6
+            nutsjump = NUTSJump(self.logl_grad, self.logp_grad, self.cov,
                     self.burn, trajectoryDir=None, write_burnin=False,
                     force_trajlen=None, force_epsilon=None, delta=0.6)
-            self.addProposalToCycle(hmcjump, HMCweight)
+            self.addProposalToCycle(nutsjump, NUTSweight)
 
         # add SCAM
         self.addProposalToCycle(
@@ -251,8 +261,9 @@ class PTSampler(object):
                 sys.stdout.flush()
 
     def sample(self, p0, Niter, ladder=None, Tmin=1, Tmax=None, Tskip=100,
-               isave=1000, covUpdate=1000, KDEupdate=1000, SCAMweight=20,
-               AMweight=20, DEweight=20, KDEweight=0, HMCweight=20, burn=10000,
+               isave=1000, covUpdate=1000, KDEupdate=1e9, SCAMweight=20,
+               AMweight=20, DEweight=20, KDEweight=0, NUTSweight=20,
+               HMCweight=20, burn=10000, HMCstepsize=0.1, HMCsteps=300,
                maxIter=None, thin=10, i0=0, neff=100000,
                writeHotChains=False, hotChain=False):
         """
@@ -270,7 +281,11 @@ class PTSampler(object):
         @param SCAMweight: Weight of SCAM jumps in overall jump cycle (default=20)
         @param AMweight: Weight of AM jumps in overall jump cycle (default=20)
         @param DEweight: Weight of DE jumps in overall jump cycle (default=20)
-        @param KDEweight: Weight of KDE jumps in overall jump cycle (default=100)
+        @param KDEweight: Weight of KDE jumps in overall jump cycle (default=0)
+        @param NUTSweight: Weight of the NUTS jumps in jump cycle (default=20)
+        @param HMCweight: Weight of the HMC jumps in jump cycle (default=20)
+        @param HMCstepsize: Step-size of the HMC jumps (default=0.1)
+        @param HMCsteps: Maximum number of steps in an HMC trajectory (default=300)
         @param burn: Burn in time (DE jumps added after this iteration) (default=10000)
         @param maxIter: Maximum number of iterations for high temperature chains
                         (default=2*self.Niter)
@@ -295,8 +310,9 @@ class PTSampler(object):
                             Tskip=Tskip, isave=isave, covUpdate=covUpdate,
                             KDEupdate=KDEupdate, SCAMweight=SCAMweight,
                             AMweight=AMweight, DEweight=DEweight, 
-                            KDEweight=KDEweight, HMCweight=HMCweight,
-                            burn=burn,
+                            KDEweight=KDEweight, NUTSweight=NUTSweight,
+                            HMCweight=HMCweight, burn=burn,
+                            HMCstepsize=HMCstepsize, HMCsteps=HMCsteps,
                             maxIter=maxIter, thin=thin, i0=i0, 
                             neff=neff, writeHotChains=writeHotChains,
                             hotChain=hotChain)
