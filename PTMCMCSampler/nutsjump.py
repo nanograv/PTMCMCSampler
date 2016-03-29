@@ -265,7 +265,6 @@ class HMCJump(object):
     def build_tree(self, theta, r, grad, logu, v, j, epsilon, joint0, ind, traj, force_trajlen):
         """The main recursion tree"""
 
-        # print("B epsilon = ", epsilon)
         if (j == 0):
             # Base case: Take a single leapfrog step in the direction v.
             thetaprime, rprime, gradprime, logpprime = self.leapfrog(theta, r, grad, v * epsilon)
@@ -382,12 +381,12 @@ class HMCJump(object):
         self.traj.add_sample(thetaminus, self.traj.length())
         self.trajind, trajind_minus, trajind_plus, trajind_prime = 0, 0, 0, 0
 
+        #print("Using epsilon = ", self.epsilon)
         while(s==1):
             # Choose a direction. -1 = backwards, 1 = forwards.
             v = int(2 * (np.random.uniform() < 0.5) - 1)
 
             # Double the size of the tree.
-            # print("W epsilon = ", self.epsilon)
             if (v == -1):
                 thetaminus, rminus, gradminus, _, _, _, thetaprime, gradprime, logpprime, nprime, sprime, alpha, nalpha, trajind_plus, trajind_minus, trajind_prime = self.build_tree(thetaminus, rminus, gradminus, logu, v, j, self.epsilon, joint, trajind_minus, self.traj, self.force_trajlen)
             else:

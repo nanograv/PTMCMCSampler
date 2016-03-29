@@ -116,7 +116,7 @@ class PTSampler(object):
         self.aux = []
 
     def initialize(self, Niter, ladder=None, Tmin=1, Tmax=None, Tskip=100,
-                   isave=1000, covUpdate=1000, KDEupdate=10000, SCAMweight=30,
+                   isave=1000, covUpdate=1000, KDEupdate=1e9, SCAMweight=30,
                    AMweight=20, DEweight=50, KDEweight=0, HMCweight=20,
                    burn=10000,
                    maxIter=None, thin=10, i0=0, neff=100000,
@@ -340,8 +340,8 @@ class PTSampler(object):
             if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
                 try:
                     Neff = iter / \
-                            np.nanmax([acor.acor(self._AMbuffer[self.burn:(iter - 1), ii])[0]
-                                          for ii in range(self.ndim)])
+                            max(1, np.nanmax([acor.acor(self._AMbuffer[self.burn:(iter - 1), ii])[0]
+                                          for ii in range(self.ndim)]))
                     # print '\n {0} effective samples'.format(Neff)
                 except NameError:
                     Neff = 0
@@ -958,8 +958,9 @@ class PTSampler(object):
 
         # check for 0 weight
         if weight == 0:
-            print 'ERROR: Can not have 0 weight in proposal cycle!'
-            sys.exit()
+            #print 'ERROR: Can not have 0 weight in proposal cycle!'
+            #sys.exit()
+            return
 
         # add proposal to cycle
         for ii in range(length, length + weight):
