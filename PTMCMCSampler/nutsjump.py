@@ -32,9 +32,12 @@ class GradientJump(object):
         self._loglik_grad = loglik_grad             # Log-likelihood & gradient
         self._logprior_grad = logprior_grad         # Log-prior & gradient
         self.mm_inv = mm_inv                        # Inverse mass-matrix
-        self.cov_cf = np.eye(len(self.mm_inv))      # Cholesky factor of mm_inv
         self.nburn=nburn                            # Nr. of burn-in steps
         self.ndim = len(self.mm_inv)                # Number of dimensions
+
+        # Set the Cholesky factor
+        self.cov_cf = np.eye(len(self.mm_inv))      # Cholesky factor of mm_inv
+        #self.cov_cf = sl.cholesky(self.mm_inv, lower=True)
 
         self.name = "GradientJUMP"
 
