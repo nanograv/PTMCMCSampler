@@ -34,19 +34,47 @@ class GradientJump(object):
         self.mm_inv = mm_inv                        # Inverse mass-matrix
         self.nburn=nburn                            # Nr. of burn-in steps
         self.ndim = len(self.mm_inv)                # Number of dimensions
-
-        # Set the Cholesky factor
-        self.cov_cf = np.eye(len(self.mm_inv))      # Cholesky factor of mm_inv
-        #self.cov_cf = sl.cholesky(self.mm_inv, lower=True)
+        self.set_cf()                               # Whitening matrices
 
         self.name = "GradientJUMP"
 
         self.epsilon = None                         # Step-size
         self.beta = 1.0                             # Inverse temperature
+        self.iter = 0.0                             # Number of gradient jumps
+
+        print("WARNING: GradientJumps not yet adaptive. Choose cov wisely!")
 
     @property
     def __name__(self):
         return self.name
+
+    def set_cf(self):
+        """Update the Cholesky factor of the inverse mass matrix"""
+        self.cov_cf = sl.cholesky(self.mm_inv, lower=True)
+        self.cov_cfi = sl.solve_triangular(self.cov_cf, np.eye(len(self.cov_cf)), trans=0, lower=True)
+
+    def update_cf(self):
+        """Update the Cholesky factor of the inverse mass matrix
+        
+        NOTE: this function is different from the one in GradientJump!
+        """
+        # Since we are adaptively tuning the step size epsilon, we should at
+        # least keep the determinant of this guy equal to what it was before.
+        new_cov_cf = sl.cholesky(self.mm_inv, lower=True)
+
+        ldet_old = np.sum(np.log(np.diag(self.cov_cf)))
+        ldet_new = np.sum(np.log(np.diag(new_cov_cf)))
+
+        self.cov_cf = np.exp((ldet_old-ldet_new)/self.ndim) * new_cov_cf
+        self.cov_cfi = sl.solve_triangular(self.cov_cf, np.eye(len(self.cov_cf)), trans=0, lower=True)
+
+    def forward(self, x):
+        """Coordinate transformation to whitened parameters x->1"""
+        return np.dot(self.cov_cfi, x)
+
+    def backward(self, q):
+        """Coordinate transformation from whitened parameters 1->x"""
+        return np.dot(self.cov_cf, q)
 
     def func_grad(self, x):
         """Log-prob and gradient, corrected for temperature"""
@@ -55,27 +83,26 @@ class GradientJump(object):
 
         return self.beta*ll+lp, self.beta*ll_grad+lp_grad
 
-    def update_cf(self):
-        """Update the Cholesky factor of the inverse mass matrix"""
-        self.cov_cf = sl.cholesky(self.mm_inv, lower=True)
+    def func_grad_white(self, q):
+        """Whitened version of func_grad"""
+        x = self.backward(q)
+        fv, fg = self.func_grad(x)
+        return fv, np.dot(self.cov_cf, fg)
 
     def draw_momenta(self):
         """Draw new momentum variables"""
-
-        xi = np.random.randn(len(self.mm_inv))
-        return np.dot(self.cov_cf, xi)
+        return np.random.randn(len(self.mm_inv))
 
     def loghamiltonian(self, logl, r):
         """Value of the Hamiltonian, given a position and momentum value"""
         try:
-            newdot = np.dot(r, sl.cho_solve((self.cov_cf, True), r))
+            return logl-0.5*np.dot(r, r)
         except ValueError as err:
             return np.nan
-        return logl-0.5*newdot
 
     def posmom_inprod(self, theta, r):
         try:
-            return np.dot(theta, sl.cho_solve((self.cov_cf, True), r))
+            return np.dot(theta, r)
         except ValueError as err:
             return np.nan
 
@@ -96,30 +123,43 @@ class GradientJump(object):
 
         rprime = r + 0.5 * epsilon * grad                   # half step in r
         thetaprime = theta + epsilon * rprime               # step in theta
-        logpprime, gradprime = self.func_grad(thetaprime)   # compute gradient
+        logpprime, gradprime = self.func_grad_white(thetaprime)   # compute gradient
         rprime = rprime + 0.5 * epsilon * gradprime         # half step in r
 
         return thetaprime, rprime, gradprime, logpprime
 
-
     def __call__(self, x, iter, beta):
         """Take one HMC trajectory step"""
 
-        raise NotImplementedError("GradientJump is an abstract base class!")
+        self.iter += 1
+
+        if self.__name__ == "GradientJUMP":
+            raise NotImplementedError("GradientJump is an abstract base class!")
+        else:
+            return x, 0.0
+
 
 class MALAJump(GradientJump):
     """MALA Jump"""
 
-    def __init__(self, loglik_grad, logprior_grad, mm_inv, nburn=100,
-            stepsize=0.1):
+    def __init__(self, loglik_grad, logprior_grad, mm_inv, nburn=100):
         """Initialize the MALA Jump"""
         super(MALAJump, self).__init__(loglik_grad, logprior_grad, mm_inv, nburn=nburn)
 
         self.name = "MALAJump"
-        self.epsilon = stepsize
+        self.cd = 2.4/np.sqrt(self.ndim)
+        self.set_eigvecs()
+
+    def set_eigvecs(self):
+        """Set the eigenvectors of the mass matrix"""
+        # Since we have whitened the parameter space, the decomposition is a
+        # simple identity matrix
+        self._u = np.eye(self.ndim)
+        self._s = np.ones(self.ndim)
 
     def __call__(self, x, iter, beta):
         """Take one MALA step"""
+        super(MALAJump, self).__call__(x, iter, beta)
 
         x = np.atleast_1d(x)
         if len(np.shape(x)) > 1:
@@ -127,34 +167,33 @@ class MALAJump(GradientJump):
         
         self.beta = beta
 
-        q = x.copy()
-        logp, grad = self.func_grad(x)
-
-        raise NotImplementedError("MALAJump is not fully implemented!")
-
         # Update the mass matrix when in burn-in stage
         # Currently, there is a problem with adjusting the mass matrix.
         # Stepsize and mass matrix need to be tuned together?
         #if iter <= self.nburn:
         #    self.update_cf()
-        """
-        hess = np.diag(np.diag(hessianLike(x)))
-        try:
-            u, s, v = np.linalg.svd(hess)
-        except LinAlgError:
-            return x, 0
-        
-        i = np.random.randint(0,len(s))
-        cd = 2.4/np.sqrt(len(s))
-        mx =  q + u[i,:] * 0.5 * cd**2*np.dot(u[i,:], grad)/2/s[i]
-        q = mx + np.random.randn()*cd/np.sqrt(s[i])*u[i,:]
-        
-        grad = gradientLike(q)
-        mq =  q + u[i,:] * 0.5 * cd**2*np.dot(u[i,:], grad)/2/s[i]
-        qxy = 0.5 * (np.sum((mx-q)**2/s[i]) - np.sum((mq-x)**2/s[i]))
-            
-        return q, qxy
-        """
+        #    self.set_eigvecs()
+
+        # Initial starting position
+        q0 = self.forward(x)
+        logp, grad0 = self.func_grad_white(q0)
+
+        # Choose an eigenvector to jump in, and the size
+        i = np.random.randint(0, self.ndim)
+        vec = self._u[i,:]
+        val = self._s[i]
+        dist = np.random.randn()
+
+        # Do the leapfrog
+        mq0 = q0 + 0.5 * vec * self.cd**2 * np.dot(vec, grad0)/2 / val
+        q1 = mq0 + dist * vec * self.cd / np.sqrt(val)
+        logp1, grad1 = self.func_grad_white(q1)
+        mq1 = q1 + 0.5 * vec * self.cd**2 * np.dot(vec, grad1)/2 / val
+
+        qxy = 0.5 * (np.sum((mq0-q1)**2/val) - np.sum((mq1-q0)**2/val))
+
+        return self.backward(q1), qxy
+
 
 class HMCJump(GradientJump):
     """Hamiltonian Monte Carlo Jump"""
@@ -171,6 +210,7 @@ class HMCJump(GradientJump):
 
     def __call__(self, x, iter, beta):
         """Take one HMC step"""
+        super(HMCJump, self).__call__(x, iter, beta)
 
         x = np.atleast_1d(x)
         if len(np.shape(x)) > 1:
@@ -186,9 +226,9 @@ class HMCJump(GradientJump):
         #    self.update_cf()
 
         # Initial starting position
-        q0 = x.copy()
+        q0 = self.forward(x)
         qxy = 0
-        logp0, grad0 = self.func_grad(x)
+        logp0, grad0 = self.func_grad_white(q0)
 
         # Draw new momentum variables
         p0 = self.draw_momenta()
@@ -201,7 +241,6 @@ class HMCJump(GradientJump):
         for ii in range(nsteps):
             q1, p1, grad1, logp1 = self.leapfrog(q, p, grad, self.epsilon)
             joint1 = self.loghamiltonian(logp1, p1)
-
             p, q, grad = np.copy(p1), np.copy(q1), np.copy(grad1)
 
             if (joint1 - 1000.) < joint0:
@@ -210,7 +249,7 @@ class HMCJump(GradientJump):
 
         qxy = joint1 - joint0
 
-        return q, qxy
+        return self.backward(q), qxy
 
 
 class Trajectory(object):
@@ -319,7 +358,7 @@ class NUTSJump(GradientJump):
         self.trajectoryDir=trajectoryDir            # Trajectory directory
         self.write_burnin = write_burnin            # Write burnin trajectories?
 
-        self.name = "NUTSJump"
+        self.name = "NUTSJUMP"
 
         self.delta = delta                          # Target acceptance rate
 
@@ -345,20 +384,6 @@ class NUTSJump(GradientJump):
                 raise IOError("Not a directory: {0}".format(trajectoryDir))
             elif not os.path.isdir(trajectoryDir):
                 os.mkdir(trajectoryDir)
-
-    def update_cf(self):
-        """Update the Cholesky factor of the inverse mass matrix
-        
-        NOTE: this function is different from the one in GradientJump!
-        """
-        # Since we are adaptively tuning the step size epsilon, we should at
-        # least keep the determinant of this guy equal to what it was before.
-        new_cov_cf = sl.cholesky(self.mm_inv, lower=True)
-
-        ldet_old = np.sum(np.log(np.diag(self.cov_cf)))
-        ldet_new = np.sum(np.log(np.diag(new_cov_cf)))
-
-        self.cov_cf = np.exp((ldet_old-ldet_new)/self.ndim) * new_cov_cf
 
     def find_reasonable_epsilon(self, theta0, grad0, logp0):
         """Heuristic for choosing an initial value of epsilon"""
@@ -487,21 +512,24 @@ class NUTSJump(GradientJump):
 
     def __call__(self, x, iter, beta):
         """Take one HMC trajectory step"""
+        super(NUTSJump, self).__call__(x, iter, beta)
 
         x = np.atleast_1d(x)
         if len(np.shape(x)) > 1:
             raise ValueError('x is expected to be a 1-D array')
+
+        q = self.forward(x)
         
         self.beta = beta
 
         # Always start evaluating the distribution and gradient.
         # Potential speed-up: obtain these values from elsewhere, since we must
         # have evaluated them already?
-        logp, grad = self.func_grad(x)
+        logp, grad = self.func_grad_white(q)
 
         if self.epsilon is None and self.force_epsilon is None:
             # First time doing an HMC jump
-            self.epsilon = self.find_reasonable_epsilon(x, grad, logp)
+            self.epsilon = self.find_reasonable_epsilon(q, grad, logp)
             # print("Find reasonable epsilon: ", self.epsilon)
             self.mu = np.log(10. * self.epsilon)     # For dual averaging
         elif self.epsilon is None and self.force_epsilon is not None:
@@ -526,7 +554,7 @@ class NUTSJump(GradientJump):
         logu = float(joint - np.random.exponential(1, size=1))
 
         # Initialize the binary tree for this trajectory
-        sample = np.copy(x)
+        sample = np.copy(q)
         lnprob = np.copy(logp)
         thetaminus = np.copy(sample)
         thetaplus = np.copy(sample)
@@ -544,7 +572,6 @@ class NUTSJump(GradientJump):
         self.traj.add_sample(thetaminus, self.traj.length())
         trajind, trajind_minus, trajind_plus, trajind_prime = 0, 0, 0, 0
 
-        #print("Using epsilon = ", self.epsilon)
         while(s==1):
             # Choose a direction. -1 = backwards, 1 = forwards.
             v = int(2 * (np.random.uniform() < 0.5) - 1)
@@ -571,16 +598,17 @@ class NUTSJump(GradientJump):
             # Increment depth.
             j += 1
 
+            sys.stdout.flush()
+
         # Do adaptation of epsilon if we're still doing burn-in.
         if self.force_epsilon is None:
-            eta = 1. / float(iter + self.t0)
+            eta = 1. / float(self.iter + self.t0)
             self.Hbar = (1. - eta) * self.Hbar + eta * (self.delta - alpha / float(nalpha))
 
             if (iter <= self.nburn):
                 # Still in the burn-in phase. So adjust epsilon
-                # QUESTION: use internal iter, for just this jump??????
-                self.epsilon = np.exp(self.mu - np.sqrt(iter) / self.gamma * self.Hbar)
-                eta = iter ** -self.kappa
+                self.epsilon = np.exp(self.mu - np.sqrt(self.iter) / self.gamma * self.Hbar)
+                eta = self.iter ** -self.kappa
                 self.epsilonbar = np.exp((1. - eta) * np.log(self.epsilonbar) + eta * np.log(self.epsilon))
 
             else:
@@ -614,5 +642,5 @@ class NUTSJump(GradientJump):
         # We need to always accept this step, so the qxy is just the inverse MH ratio
         qxy = logp - lnprob
 
-        return sample, qxy
+        return self.backward(sample), qxy
 

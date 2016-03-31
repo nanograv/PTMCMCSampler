@@ -8,7 +8,7 @@ import scipy.stats as ss
 import os
 import sys
 import time
-from nutsjump import NUTSJump, HMCJump
+from nutsjump import NUTSJump, HMCJump, MALAJump
 
 try:
     from mpi4py import MPI
@@ -121,7 +121,7 @@ class PTSampler(object):
     def initialize(self, Niter, ladder=None, Tmin=1, Tmax=None, Tskip=100,
                    isave=1000, covUpdate=1000, SCAMweight=30,
                    AMweight=20, DEweight=50,
-                   NUTSweight=20, HMCweight=20,
+                   NUTSweight=20, HMCweight=20, MALAweight=0,
                    burn=10000, HMCstepsize=0.1, HMCsteps=300,
                    maxIter=None, thin=10, i0=0, neff=100000,
                    writeHotChains=False, hotChain=False):
@@ -170,10 +170,17 @@ class PTSampler(object):
 
         # Gradient-based jumps
         if self.logl_grad is not None and self.logp_grad is not None:
+            # DOES MALA do anything with the burnin? (Not adaptive enabled yet)
+            malajump = MALAJump(self.logl_grad, self.logp_grad, self.cov,
+                    self.burn)
+            self.addProposalToCycle(malajump, MALAweight)
+            if MALAweight > 0:
+                print("WARNING: MALA jumps are not working properly yet")
+
             # Perhaps have an option to adaptively tune the mass matrix?
             # Now that is done by defaulk
             hmcjump = HMCJump(self.logl_grad, self.logp_grad, self.cov,
-                    self.burn, stepsize=HMCstepsize, nminsteps=10,
+                    self.burn, stepsize=HMCstepsize, nminsteps=2,
                     nmaxsteps=HMCsteps)
             self.addProposalToCycle(hmcjump, HMCweight)
 
@@ -260,7 +267,7 @@ class PTSampler(object):
 
     def sample(self, p0, Niter, ladder=None, Tmin=1, Tmax=None, Tskip=100,
                isave=1000, covUpdate=1000, SCAMweight=20,
-               AMweight=20, DEweight=20, NUTSweight=20,
+               AMweight=20, DEweight=20, NUTSweight=20, MALAweight=20,
                HMCweight=20, burn=10000, HMCstepsize=0.1, HMCsteps=300,
                maxIter=None, thin=10, i0=0, neff=100000,
                writeHotChains=False, hotChain=False):
@@ -279,6 +286,7 @@ class PTSampler(object):
         @param AMweight: Weight of AM jumps in overall jump cycle (default=20)
         @param DEweight: Weight of DE jumps in overall jump cycle (default=20)
         @param NUTSweight: Weight of the NUTS jumps in jump cycle (default=20)
+        @param MALAweight: Weight of the MALA jumps in jump cycle (default=20)
         @param HMCweight: Weight of the HMC jumps in jump cycle (default=20)
         @param HMCstepsize: Step-size of the HMC jumps (default=0.1)
         @param HMCsteps: Maximum number of steps in an HMC trajectory (default=300)
@@ -306,7 +314,7 @@ class PTSampler(object):
                             Tskip=Tskip, isave=isave, covUpdate=covUpdate,
                             SCAMweight=SCAMweight,
                             AMweight=AMweight, DEweight=DEweight, 
-                            NUTSweight=NUTSweight,
+                            NUTSweight=NUTSweight, MALAweight=MALAweight,
                             HMCweight=HMCweight, burn=burn,
                             HMCstepsize=HMCstepsize, HMCsteps=HMCsteps,
                             maxIter=maxIter, thin=thin, i0=i0, 
