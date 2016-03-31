@@ -60,8 +60,7 @@ class PTSampler(object):
 
     def __init__(self, ndim, logl, logp, cov, groups=None, loglargs=[], loglkwargs={},
                  logpargs=[], logpkwargs={}, logl_grad=None, logp_grad=None,
-                 comm=MPI.COMM_WORLD,
-                 outDir='./chains', verbose=True, resume=False):
+                 comm=MPI.COMM_WORLD, outDir='./chains', verbose=True, resume=False):
 
         # MPI initialization
         self.comm = comm
@@ -191,12 +190,15 @@ class PTSampler(object):
             self.addProposalToCycle(nutsjump, NUTSweight)
 
         # add SCAM
-        self.addProposalToCycle(
-            self.covarianceJumpProposalSCAM,
-            self.SCAMweight)
+        self.addProposalToCycle(self.covarianceJumpProposalSCAM, 
+                                self.SCAMweight)
 
         # add AM
         self.addProposalToCycle(self.covarianceJumpProposalAM, self.AMweight)
+
+        # check length of jump cycle 
+        if len(self.propCycle) == 0:
+            raise ValueError('No jump proposals specified!')
 
         # randomize cycle
         self.randomizeProposalCycle()
