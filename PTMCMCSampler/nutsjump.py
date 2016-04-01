@@ -68,20 +68,20 @@ class GradientJump(object):
         self.cov_cf = np.exp((ldet_old-ldet_new)/self.ndim) * new_cov_cf
         self.cov_cfi = sl.solve_triangular(self.cov_cf, np.eye(len(self.cov_cf)), trans=0, lower=True)
 
-    def forward(self, x):
-        """Coordinate transformation to whitened parameters x->1"""
-        return np.dot(self.cov_cfi, x)
-
-    def backward(self, q):
-        """Coordinate transformation from whitened parameters 1->x"""
-        return np.dot(self.cov_cf, q)
-
     def func_grad(self, x):
         """Log-prob and gradient, corrected for temperature"""
         ll, ll_grad = self._loglik_grad(x)
         lp, lp_grad = self._logprior_grad(x)
 
         return self.beta*ll+lp, self.beta*ll_grad+lp_grad
+
+    def forward(self, x):
+        """Coordinate transformation to whitened parameters x->q"""
+        return np.dot(self.cov_cfi.T, x)
+
+    def backward(self, q):
+        """Coordinate transformation from whitened parameters q->x"""
+        return np.dot(self.cov_cf.T, q)
 
     def func_grad_white(self, q):
         """Whitened version of func_grad"""
@@ -105,6 +105,46 @@ class GradientJump(object):
             return np.dot(theta, r)
         except ValueError as err:
             return np.nan
+
+    # With the following definitions, we should be able to get rid of this
+    # awkward coordinate transformation. Why does it not work?
+    """
+    def forward(self, x):
+        #return np.dot(self.cov_cfi.T, x)
+        return x
+
+    def backward(self, q):
+        #return np.dot(self.cov_cf.T, q)
+        return q
+
+    def func_grad_white(self, q):
+        # We would be able to get rid of this function
+        #x = self.backward(q)
+        #fv, fg = self.func_grad(x)
+        #return fv, np.dot(self.cov_cf, fg)
+        return self.func_grad(q)
+
+    def draw_momenta(self):
+        #return np.random.randn(len(self.mm_inv))
+        return np.dot(self.cov_cfi.T, np.random.randn(self.ndim))
+
+    def loghamiltonian(self, logl, r):
+        try:
+            #return logl-0.5*np.dot(r, r)
+            newr = np.dot(self.cov_cfi.T, r)
+            return logl-0.5*np.dot(newr, newr)
+        except ValueError as err:
+            return np.nan
+
+    def posmom_inprod(self, theta, r):
+        try:
+            newr = np.dot(self.cov_cfi.T, r)
+            newtheta = np.dot(self.cov_cfi.T, theta)
+            return np.dot(newtheta, newr)
+            #return np.dot(theta, r)
+        except ValueError as err:
+            return np.nan
+    """
 
     def leapfrog(self, theta, r, grad, epsilon):
         """Perfom a leapfrog jump in the Hamiltonian space
@@ -342,7 +382,8 @@ class NUTSJump(GradientJump):
     """Class for No-U-Turn-Sampling Hamiltonian Monte Carlo jumps"""
     
     def __init__(self, loglik_grad, logprior_grad, mm_inv, nburn=100,
-            trajectoryDir=None, write_burnin=False, force_trajlen=None, force_epsilon=None, delta=0.6):
+            trajectoryDir=None, write_burnin=False, force_trajlen=None,
+            force_epsilon=None, delta=0.6):
         """Initialize the HMC class
 
         :loglik_grad:   Log-likelihood and gradient function
@@ -353,7 +394,8 @@ class NUTSJump(GradientJump):
         :write_burnin:  Whether we are writing the burn-in trajectories
         
         """
-        super(NUTSJump, self).__init__(loglik_grad, logprior_grad, mm_inv, nburn=100)
+        super(NUTSJump, self).__init__(loglik_grad, logprior_grad, mm_inv,
+                nburn=nburn)
         
         self.trajectoryDir=trajectoryDir            # Trajectory directory
         self.write_burnin = write_burnin            # Write burnin trajectories?
