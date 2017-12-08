@@ -1,25 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division
+from __future__ import division, print_function, absolute_import
 
 import numpy as np
 import scipy.stats as ss
 import os
 import sys
 import time
-from nutsjump import NUTSJump, HMCJump, MALAJump
+from .nutsjump import NUTSJump, HMCJump, MALAJump
 
 try:
     from mpi4py import MPI
 except ImportError:
-    print 'Do not have mpi4py package.'
+    print('Do not have mpi4py package.')
     import nompi4py as MPI
 
 try:
     import acor
 except ImportError:
-    print 'Do not have acor package'
+    print('Do not have acor package')
     pass
 
 
@@ -190,31 +190,31 @@ class PTSampler(object):
             self.addProposalToCycle(nutsjump, NUTSweight)
 
         # add SCAM
-        self.addProposalToCycle(self.covarianceJumpProposalSCAM, 
+        self.addProposalToCycle(self.covarianceJumpProposalSCAM,
                                 self.SCAMweight)
 
         # add AM
         self.addProposalToCycle(self.covarianceJumpProposalAM, self.AMweight)
 
-        # check length of jump cycle 
+        # check length of jump cycle
         if len(self.propCycle) == 0:
             raise ValueError('No jump proposals specified!')
 
         # randomize cycle
         self.randomizeProposalCycle()
-        
+
         # setup default temperature ladder
         if self.ladder is None:
             self.ladder = self.temperatureLadder(Tmin, Tmax=Tmax)
 
         # temperature for current chain
         self.temp = self.ladder[self.MPIrank]
-        
+
         # hot chain sampling from prior
         if hotChain and self.MPIrank == self.nchain-1:
             self.temp = 1e80
             self.fname = self.outDir + '/chain_hot.txt'
-        else: 
+        else:
             self.fname = self.outDir + '/chain_{0}.txt'.format(self.temp)
 
         # write hot chains
@@ -223,12 +223,12 @@ class PTSampler(object):
         self.resumeLength = 0
         if self.resume and os.path.isfile(self.fname):
             if self.verbose:
-                print 'Resuming run from chain file {0}'.format(self.fname)
+                print('Resuming run from chain file {0}'.format(self.fname))
             try:
                 self.resumechain = np.loadtxt(self.fname)
                 self.resumeLength = self.resumechain.shape[0]
             except ValueError:
-                print 'WARNING: Cant read in file. Removing last line.'
+                print('WARNING: Cant read in file. Removing last line.')
                 os.system('sed -ie \'$d\' {0}'.format(self.fname))
                 self.resumechain = np.loadtxt(self.fname)
                 self.resumeLength = self.resumechain.shape[0]
@@ -315,11 +315,11 @@ class PTSampler(object):
             self.initialize(Niter, ladder=ladder, Tmin=Tmin, Tmax=Tmax,
                             Tskip=Tskip, isave=isave, covUpdate=covUpdate,
                             SCAMweight=SCAMweight,
-                            AMweight=AMweight, DEweight=DEweight, 
+                            AMweight=AMweight, DEweight=DEweight,
                             NUTSweight=NUTSweight, MALAweight=MALAweight,
                             HMCweight=HMCweight, burn=burn,
                             HMCstepsize=HMCstepsize, HMCsteps=HMCsteps,
-                            maxIter=maxIter, thin=thin, i0=i0, 
+                            maxIter=maxIter, thin=thin, i0=i0,
                             neff=neff, writeHotChains=writeHotChains,
                             hotChain=hotChain)
 
@@ -367,7 +367,7 @@ class PTSampler(object):
                     Neff = iter / \
                             max(1, np.nanmax([acor.acor(self._AMbuffer[self.burn:(iter - 1), ii])[0]
                                           for ii in range(self.ndim)]))
-                    # print '\n {0} effective samples'.format(Neff)
+                    # print('\n {0} effective samples'.format(Neff))
                 except NameError:
                     Neff = 0
                     pass
@@ -375,13 +375,13 @@ class PTSampler(object):
             # stop if reached maximum number of iterations
             if self.MPIrank == 0 and iter >= self.Niter - 1:
                 if self.verbose:
-                    print '\nRun Complete'
+                    print('\nRun Complete')
                 runComplete = True
 
             # stop if reached effective number of samples
             if self.MPIrank == 0 and int(Neff) > self.neff:
                 if self.verbose:
-                    print '\nRun Complete with {0} effective samples'.format(int(Neff))
+                    print('\nRun Complete with {0} effective samples'.format(int(Neff)))
                 runComplete = True
 
             if self.MPIrank == 0 and runComplete:
@@ -458,7 +458,7 @@ class PTSampler(object):
         # after burn in, add DE jumps
         if (iter - 1) == self.burn and self.MPIrank == 0:
             if self.verbose:
-                print 'Adding DE jump with weight {0}'.format(self.DEweight)
+                print('Adding DE jump with weight {0}'.format(self.DEweight))
             self.addProposalToCycle(self.DEJump, self.DEweight)
 
             # randomize cycle
@@ -476,7 +476,7 @@ class PTSampler(object):
             accepted = 1
         else:
             y, qxy, jump_name = self._jump(p0, iter)
-            self.jumpDict[jump_name][0] += 1 
+            self.jumpDict[jump_name][0] += 1
 
             # compute prior and likelihood
             lp = self.logp(y)
@@ -500,7 +500,7 @@ class PTSampler(object):
                 # update acceptance counter
                 self.naccepted += 1
                 accepted = 1
-                self.jumpDict[jump_name][1] += 1 
+                self.jumpDict[jump_name][1] += 1
 
         # temperature swap
         swapReturn, p0, lnlike0, lnprob0 = self.PTswap(
@@ -559,8 +559,8 @@ class PTSampler(object):
 
                 # exchange parameters
                 pnew = np.empty(self.ndim)
-                self.comm.Sendrecv(p0, dest=self.MPIrank+1, sendtag=19, 
-                              recvbuf=pnew, source=self.MPIrank+1, 
+                self.comm.Sendrecv(p0, dest=self.MPIrank+1, sendtag=19,
+                              recvbuf=pnew, source=self.MPIrank+1,
                               recvtag=19)
                 p0 = pnew
 
@@ -600,8 +600,8 @@ class PTSampler(object):
 
                     # exchange parameters
                     pnew = np.empty(self.ndim)
-                    self.comm.Sendrecv(p0, dest=self.MPIrank-1, sendtag=19, 
-                                  recvbuf=pnew, source=self.MPIrank-1, 
+                    self.comm.Sendrecv(p0, dest=self.MPIrank-1, sendtag=19,
+                                  recvbuf=pnew, source=self.MPIrank-1,
                                   recvtag=19)
                     p0 = pnew
 
@@ -664,7 +664,7 @@ class PTSampler(object):
                                              for kk in range(self.ndim)]))
             self._chainfile.write('\t%f\t %f\t %f\t %f\t' % (self._lnprob[ind],
                                                              self._lnlike[ind],
-                                                             self.naccepted / 
+                                                             self.naccepted /
                                                              iter, pt_acc))
             self._chainfile.write('\n')
         self._chainfile.close()
@@ -887,7 +887,7 @@ class PTSampler(object):
         # get old parameters
         q = x.copy()
         qxy = 0
-        
+
         # choose group
         jumpind = np.random.randint(0, len(self.groups))
         ndim = len(self.groups[jumpind])
@@ -939,7 +939,7 @@ class PTSampler(object):
 
         # check for 0 weight
         if weight == 0:
-            #print 'ERROR: Can not have 0 weight in proposal cycle!'
+            #print('ERROR: Can not have 0 weight in proposal cycle!')
             #sys.exit()
             return
 
