@@ -677,7 +677,7 @@ class PTSampler(object):
             # first write file contaning jump names and jump rates
             fout = open(self.outDir + '/jumps.txt', 'w')
             njumps = len(self.propCycle)
-            ujumps = np.unique(self.propCycle)
+            ujumps = np.array(list(set(self.propCycle)))
             for jump in ujumps:
                 fout.write('%s %4.2g\n' % (
                     jump.__name__,
