@@ -14,7 +14,7 @@ try:
     from mpi4py import MPI
 except ImportError:
     print('Do not have mpi4py package.')
-    import nompi4py as MPI
+    from . import nompi4py as MPI
 
 try:
     import acor
