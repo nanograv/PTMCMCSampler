@@ -5,6 +5,11 @@ MPI enabled Parallel Tempering MCMC code written in Python.
 
 Please visit http://jellis18.github.io/PTMCMCSampler/ for documentation.
 
+In order for the sampler to run correctly with Python 3 kernels the GitHub version of acor needs to be installed. It can be in stalled with:
+```
+pip install git+https://github.com/dfm/acor.git@master
+```
+
 ## Attribution
 
 If you make use of this code, please cite:
