@@ -21,7 +21,7 @@ setup(
     packages=["PTMCMCSampler"],
     package_dir={'PTMCMCSampler': 'PTMCMCSampler'},
     url="https://github.com/jellis18/PTMCMCSampler",
-    license="GPLv3",
+    license="MIT",
     zip_safe=False,
     description="Parallel tempering MCMC sampler written in Python",
     long_description=open("README.md").read() + "\n\n"
