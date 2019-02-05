@@ -773,14 +773,14 @@ class PTSampler(object):
         # adjust step size
         prob = np.random.rand()
 
-        # small jump
-        if prob > 0.9:
-            scale = 0.2
-
         # large jump
-        elif prob > 0.97:
+        if prob > 0.97:
             scale = 10
 
+        # small jump
+        elif prob > 0.9:
+            scale = 0.2
+        
         # small-medium jump
         # elif prob > 0.6:
             #:wq    scale = 0.5
@@ -835,13 +835,13 @@ class PTSampler(object):
         # adjust step size
         prob = np.random.rand()
 
-        # small jump
-        if prob > 0.9:
-            scale = 0.2
-
         # large jump
-        elif prob > 0.97:
+        if prob > 0.97:
             scale = 10
+        
+        # small jump
+        elif prob > 0.9:
+            scale = 0.2
 
         # small-medium jump
         # elif prob > 0.6:
