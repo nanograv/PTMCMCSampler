@@ -12,6 +12,7 @@ setup(
     zip_safe=False,
     description="Parallel tempering MCMC sampler written in Python",
     long_description=open("README.md").read() + "\n\n" + "---------\n\n" + open("HISTORY.md").read(),
+    long_description_content_type="text/markdown",
     package_data={"": ["README.md", "HISTORY.md"]},
     install_requires=["numpy>=1.16.3", "scipy>=1.2.0"],
     python_requires=">=3.6",
