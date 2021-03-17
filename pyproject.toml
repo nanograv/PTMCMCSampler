@@ -1,0 +1,35 @@
+[tool.isort]
+include_trailing_comma = true
+indent = '    '
+dedup_headings = true
+line_length = 120
+multi_line_output = 3
+
+[tool.black]
+line-length = 120
+target_version = ['py36']
+include = '\.pyi?$'
+exclude = '''
+
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | _build
+    | build
+    | dist
+    | docs
+    | venv
+    | examples 
+  )/
+)
+'''
+[build-system]
+requires = [
+    "setuptools>=40.8.0",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
