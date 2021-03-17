@@ -1,6 +1,4 @@
-from __future__ import absolute_import, division, print_function
-
-__version__ = 2015.02
+__version__ = "2.0.0"
 
 from PTMCMCSampler import PTMCMCSampler  # noqa: F401
 

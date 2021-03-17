@@ -2,6 +2,8 @@
 # coding: utf-8
 
 
+from pathlib import Path
+
 import numpy as np
 
 from PTMCMCSampler import PTMCMCSampler
@@ -67,7 +69,9 @@ cov = np.eye(ndim) * 0.1 ** 2
 # In[5]:
 
 
-sampler = PTMCMCSampler.PTSampler(ndim, glo.lnlikefn, glo.lnpriorfn, np.copy(cov), outDir="./chains")
+sampler = PTMCMCSampler.PTSampler(
+    ndim, glo.lnlikefn, glo.lnpriorfn, np.copy(cov), outDir=str(Path(__file__).parent / "chains")
+)
 
 
 # ## Add custom jump
