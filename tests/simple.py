@@ -115,4 +115,4 @@ sampler.addProposalToCycle(ujump.jump, 5)
 # In[8]:
 
 
-sampler.sample(p0, 100000, burn=500, thin=1, covUpdate=500, SCAMweight=20, AMweight=20, DEweight=20)
+sampler.sample(p0, 10000, burn=500, thin=1, covUpdate=500, SCAMweight=20, AMweight=20, DEweight=20)
