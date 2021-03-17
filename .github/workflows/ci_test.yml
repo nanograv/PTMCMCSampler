@@ -63,8 +63,7 @@ jobs:
         python-version: "3.7"
     - name: Install non-python dependencies on linux
       run: |
-        sudo apt-get install libsuitesparse-dev
-        curl -sSL https://raw.githubusercontent.com/vallis/libstempo/master/install_tempo2.sh | sh
+        sudo apt install libopenmpi-dev
     - name: Build
       run: |
         python -m pip install --upgrade pip setuptools wheel
