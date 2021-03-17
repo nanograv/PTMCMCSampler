@@ -70,23 +70,9 @@ jobs:
         pip install -r requirements.txt
         make dist
     - name: Test the sdist
-      run: |
-        mkdir tmp  
-        cd tmp
-        python -m venv venv-sdist
-        venv-sdist/bin/python -m pip install --upgrade pip setuptools wheel
-        venv-sdist/bin/python -m pip install numpy cython
-        venv-sdist/bin/python -m pip install ../dist/PTMCMCSampler*.tar.gz
-        venv-sdist/bin/python -c "import PTMCMCSampler;print(PTMCMCSampler.__version__)"
+      run: make test-sdist
     - name: Test the wheel
-      run: |
-        mkdir tmp2  
-        cd tmp2
-        python -m venv venv-wheel
-        venv-wheel/bin/python -m pip install --upgrade pip setuptools
-        venv-wheel/bin/python -m pip install numpy cython
-        venv-wheel/bin/python -m pip install ../dist/PTMCMCSampler*.whl
-        venv-wheel/bin/python -c "import PTMCMCSampler;print(PTMCMCSampler.__version__)"
+      run: make test-wheel
     - uses: actions/upload-artifact@v2
       with:
         name: dist

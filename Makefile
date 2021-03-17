@@ -72,3 +72,21 @@ dist: clean ## builds source and wheel package
 	python setup.py sdist
 	python setup.py bdist_wheel
 	ls -l dist
+
+test-sdist: ## Test source distribution
+	mkdir tmp  
+	cd tmp
+	python -m venv venv-sdist
+	venv-sdist/bin/python -m pip install --upgrade pip setuptools wheel
+	venv-sdist/bin/python -m pip install dist/ptmcmcsampler*.tar.gz
+	venv-sdist/bin/python -c "import PTMCMCSampler;print(PTMCMCSampler.__version__)"
+	rm -rf tmp venv-sdist
+
+test-wheel: ## Test wheel
+	mkdir tmp2  
+	cd tmp2
+	python -m venv venv-wheel
+	venv-wheel/bin/python -m pip install --upgrade pip setuptools
+	venv-wheel/bin/python -m pip install dist/ptmcmcsampler*.whl
+	venv-wheel/bin/python -c "import PTMCMCSampler;print(PTMCMCSampler.__version__)"
+	rm -rf tmp2 venv-wheel
