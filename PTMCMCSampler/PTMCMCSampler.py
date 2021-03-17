@@ -950,7 +950,7 @@ class PTSampler(object):
         jumpind = np.random.randint(0, len(self.groups))
         ndim = len(self.groups[jumpind])
 
-        bufsize = np.alen(self._DEbuffer)
+        bufsize = len(self._DEbuffer)
 
         # draw a random integer from 0 - iter
         mm = np.random.randint(0, bufsize)
