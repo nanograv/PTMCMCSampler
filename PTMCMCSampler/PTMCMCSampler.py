@@ -179,7 +179,7 @@ class PTSampler(object):
         self.neff = neff
         self.tstart = 0
 
-        N = int(maxIter / thin)
+        N = int(np.ceil(maxIter / thin))
 
         self._lnprob = np.zeros(N)
         self._lnlike = np.zeros(N)
