@@ -9,13 +9,16 @@ from .nutsjump import HMCJump, MALAJump, NUTSJump
 try:
     from mpi4py import MPI
 except ImportError:
-    print("Do not have mpi4py package.")
+    print("Optional mpi4py package is not installed.  MPI support is not available.")
     from . import nompi4py as MPI
 
 try:
     import acor
 except ImportError:
-    print("Do not have acor package")
+    print(
+        "Optional acor package is not installed. Acor is optionally used to calculate the "
+        "effective chain length for output in the chain file."
+    )
     pass
 
 
