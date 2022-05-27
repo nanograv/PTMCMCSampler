@@ -12,15 +12,6 @@ except ImportError:
     print("Optional mpi4py package is not installed.  MPI support is not available.")
     from . import nompi4py as MPI
 
-try:
-    import acor
-except ImportError:
-    print(
-        "Optional acor package is not installed. Acor is optionally used to calculate the "
-        "effective chain length for output in the chain file."
-    )
-    pass
-
 
 class PTSampler(object):
 
@@ -436,18 +427,18 @@ class PTSampler(object):
             p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
 
             # compute effective number of samples
-            if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
-                try:
-                    Neff = iter / max(
-                        1,
-                        np.nanmax(
-                            [acor.acor(self._AMbuffer[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
-                        ),
-                    )
-                    # print('\n {0} effective samples'.format(Neff))
-                except NameError:
-                    Neff = 0
-                    pass
+            # if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
+            #     try:
+            #         Neff = iter / max(
+            #             1,
+            #             np.nanmax(
+            #                 [acor.acor(self._AMbuffer[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
+            #             ),
+            #         )
+            #         # print('\n {0} effective samples'.format(Neff))
+            #     except NameError:
+            #         Neff = 0
+            #         pass
 
             # stop if reached maximum number of iterations
             if self.MPIrank == 0 and iter >= self.Niter - 1:
