@@ -137,7 +137,7 @@ class PTSampler(object):
         NUTSweight=20,
         HMCweight=20,
         MALAweight=0,
-        burn=10000,
+        buffer_size=10000,
         HMCstepsize=0.1,
         HMCsteps=300,
         maxIter=None,
@@ -146,6 +146,7 @@ class PTSampler(object):
         neff=100000,
         writeHotChains=False,
         hotChain=False,
+        dev=False
     ):
         """
         Initialize MCMC quantities
@@ -154,6 +155,8 @@ class PTSampler(object):
         @Tmin: minumum temperature to use in temperature ladder
 
         """
+        self.dev = dev
+
         # get maximum number of iteration
         if maxIter is None and self.MPIrank > 0:
             maxIter = 4 * Niter
@@ -165,7 +168,7 @@ class PTSampler(object):
         self.SCAMweight = SCAMweight
         self.AMweight = AMweight
         self.DEweight = DEweight
-        self.burn = burn
+        self.buffer_size = buffer_size
         self.Tskip = Tskip
         self.thin = thin
         self.isave = isave
@@ -177,7 +180,8 @@ class PTSampler(object):
 
         self._lnprob = np.zeros(N)
         self._lnlike = np.zeros(N)
-        self._chain = np.zeros((N, self.ndim))
+        if dev:
+           self._chain = np.zeros((N, self.ndim))
         self.naccepted = 0
         self.swapProposed = 0
         self.nswap_accepted = 0
@@ -185,15 +189,15 @@ class PTSampler(object):
         # set up covariance matrix and DE buffers
         # TODO: better way of allocating this to save memory
         if self.MPIrank == 0:
-            self._AMbuffer = np.zeros((self.Niter, self.ndim))
-            self._DEbuffer = np.zeros((self.burn, self.ndim))
+            # self._AMbuffer = np.zeros((self.buffer_size, self.ndim))
+            self._buffer = np.zeros((self.buffer_size, self.ndim))
 
         # ##### setup default jump proposal distributions ##### #
 
         # Gradient-based jumps
         if self.logl_grad is not None and self.logp_grad is not None:
             # DOES MALA do anything with the burnin? (Not adaptive enabled yet)
-            malajump = MALAJump(self.logl_grad, self.logp_grad, self.cov, self.burn)
+            malajump = MALAJump(self.logl_grad, self.logp_grad, self.cov, self.buffer_size)
             self.addProposalToCycle(malajump, MALAweight)
             if MALAweight > 0:
                 print("WARNING: MALA jumps are not working properly yet")
@@ -204,7 +208,7 @@ class PTSampler(object):
                 self.logl_grad,
                 self.logp_grad,
                 self.cov,
-                self.burn,
+                self.buffer_size,
                 stepsize=HMCstepsize,
                 nminsteps=2,
                 nmaxsteps=HMCsteps,
@@ -216,7 +220,7 @@ class PTSampler(object):
                 self.logl_grad,
                 self.logp_grad,
                 self.cov,
-                self.burn,
+                self.buffer_size,
                 trajectoryDir=None,
                 write_burnin=False,
                 force_trajlen=None,
@@ -277,16 +281,18 @@ class PTSampler(object):
         Update chains after jump proposals
 
         """
-        # update buffer
-        if self.MPIrank == 0:
-            self._AMbuffer[iter, :] = p0
 
         # put results into arrays
         if iter % self.thin == 0:
             ind = int(iter / self.thin)
-            self._chain[ind, :] = p0
+            if self.dev:
+                self._chain[ind, :] = p0
             self._lnlike[ind] = lnlike0
             self._lnprob[ind] = lnprob0
+        
+            # update buffer
+            if self.MPIrank == 0:
+                self._buffer[iter, :] = p0
 
         # write to file
         if iter % self.isave == 0 and iter > 1 and iter > self.resumeLength:
@@ -427,12 +433,12 @@ class PTSampler(object):
             p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
 
             # compute effective number of samples
-            # if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
+            # if iter % 1000 == 0 and iter > 2 * self.buffer_size and self.MPIrank == 0:
             #     try:
             #         Neff = iter / max(
             #             1,
             #             np.nanmax(
-            #                 [acor.acor(self._AMbuffer[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
+            #                 [acor.acor(self._AMbuffer[self.buffer_size : (iter - 1), ii])[0] for ii in range(self.ndim)]
             #             ),
             #         )
             #         # print('\n {0} effective samples'.format(Neff))
@@ -497,18 +503,18 @@ class PTSampler(object):
             getCovariance = 0
 
         # update DE buffer
-        if (iter - 1) % self.burn == 0 and (iter - 1) != 0 and self.MPIrank == 0:
-            self._updateDEbuffer(iter - 1, self.burn)
+        if (iter - 1) % self.buffer_size == 0 and (iter - 1) != 0 and self.MPIrank == 0:
+            # self._updateDEbuffer(iter - 1, self.buffer_size)
 
             # broadcast to other chains
-            [self.comm.send(self._DEbuffer, dest=rank + 1, tag=222) for rank in range(self.nchain - 1)]
+            [self.comm.send(self._buffer, dest=rank + 1, tag=222) for rank in range(self.nchain - 1)]
 
         # check for sent DE buffer from T = 0 chain
         getDEbuf = self.comm.Iprobe(source=0, tag=222)
         time.sleep(0.000001)
 
         if getDEbuf and self.MPIrank > 0:
-            self._DEbuffer = self.comm.recv(source=0, tag=222)
+            self._buffer = self.comm.recv(source=0, tag=222)
 
             # randomize cycle
             if self.DEJump not in self.propCycle:
@@ -519,7 +525,7 @@ class PTSampler(object):
             getDEbuf = 0
 
         # after burn in, add DE jumps
-        if (iter - 1) == self.burn and self.MPIrank == 0:
+        if (iter - 1) == self.buffer_size and self.MPIrank == 0:
             if self.verbose:
                 print("Adding DE jump with weight {0}".format(self.DEweight))
             self.addProposalToCycle(self.DEJump, self.DEweight)
@@ -767,10 +773,10 @@ class PTSampler(object):
             it += 1
             for jj in range(ndim):
 
-                diff[jj] = self._AMbuffer[iter - mem + ii, jj] - self.mu[jj]
+                diff[jj] = self._buffer[iter - mem + ii, jj] - self.mu[jj]
                 self.mu[jj] += diff[jj] / it
 
-            self.M2 += np.outer(diff, (self._AMbuffer[iter - mem + ii, :] - self.mu))
+            self.M2 += np.outer(diff, (self._buffer[iter - mem + ii, :] - self.mu))
 
         self.cov[:, :] = self.M2 / (it - 1)
 
@@ -794,7 +800,7 @@ class PTSampler(object):
 
         """
 
-        self._DEbuffer = self._AMbuffer[iter - burn : iter]
+        self._buffer = self._buffer
 
     # SCAM jump
     def covarianceJumpProposalSCAM(self, x, iter, beta):
@@ -939,7 +945,7 @@ class PTSampler(object):
         jumpind = np.random.randint(0, len(self.groups))
         ndim = len(self.groups[jumpind])
 
-        bufsize = len(self._DEbuffer)
+        bufsize = len(self._buffer)
 
         # draw a random integer from 0 - iter
         mm = np.random.randint(0, bufsize)
@@ -962,7 +968,7 @@ class PTSampler(object):
         for ii in range(ndim):
 
             # jump size
-            sigma = self._DEbuffer[mm, self.groups[jumpind][ii]] - self._DEbuffer[nn, self.groups[jumpind][ii]]
+            sigma = self._buffer[mm, self.groups[jumpind][ii]] - self._buffer[nn, self.groups[jumpind][ii]]
 
             # jump
             q[self.groups[jumpind][ii]] += scale * sigma
