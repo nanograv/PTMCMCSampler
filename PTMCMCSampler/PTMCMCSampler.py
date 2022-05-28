@@ -129,7 +129,6 @@ class PTSampler(object):
         Tmin=1,
         Tmax=None,
         Tskip=100,
-        isave=1000,
         covUpdate=1000,
         SCAMweight=30,
         AMweight=20,
@@ -137,7 +136,7 @@ class PTSampler(object):
         NUTSweight=20,
         HMCweight=20,
         MALAweight=0,
-        buffer_size=10000,
+        buffer_size=1000,
         HMCstepsize=0.1,
         HMCsteps=300,
         maxIter=None,
@@ -171,7 +170,7 @@ class PTSampler(object):
         self.buffer_size = buffer_size
         self.Tskip = Tskip
         self.thin = thin
-        self.isave = isave
+        self.isave = self.buffer_size
         self.Niter = Niter
         self.neff = neff
         self.tstart = 0
@@ -189,8 +188,7 @@ class PTSampler(object):
         # set up covariance matrix and DE buffers
         # TODO: better way of allocating this to save memory
         if self.MPIrank == 0:
-            # self._AMbuffer = np.zeros((self.buffer_size, self.ndim))
-            self._buffer = np.zeros((self.buffer_size, self.ndim))
+            self._buffer = np.zeros((self.buffer_size // self.thin, self.ndim))
 
         # ##### setup default jump proposal distributions ##### #
 
@@ -289,13 +287,14 @@ class PTSampler(object):
                 self._chain[ind, :] = p0
             self._lnlike[ind] = lnlike0
             self._lnprob[ind] = lnprob0
-        
+
             # update buffer
             if self.MPIrank == 0:
-                self._buffer[iter, :] = p0
+                print((iter % self.buffer_size) // self.thin)
+                self._buffer[(iter % self.buffer_size) // self.thin, :] = p0
 
         # write to file
-        if iter % self.isave == 0 and iter > 1 and iter > self.resumeLength:
+        if iter % self.buffer_size == 0 and iter > 1 and iter > self.resumeLength:
             if self.writeHotChains or self.MPIrank == 0:
                 self._writeToFile(iter)
 
@@ -317,7 +316,6 @@ class PTSampler(object):
         Tmin=1,
         Tmax=None,
         Tskip=100,
-        isave=1000,
         covUpdate=1000,
         SCAMweight=20,
         AMweight=20,
@@ -325,7 +323,7 @@ class PTSampler(object):
         NUTSweight=20,
         MALAweight=20,
         HMCweight=20,
-        burn=10000,
+        buffer_size=1000,
         HMCstepsize=0.1,
         HMCsteps=300,
         maxIter=None,
@@ -378,7 +376,6 @@ class PTSampler(object):
                 Tmin=Tmin,
                 Tmax=Tmax,
                 Tskip=Tskip,
-                isave=isave,
                 covUpdate=covUpdate,
                 SCAMweight=SCAMweight,
                 AMweight=AMweight,
@@ -386,7 +383,7 @@ class PTSampler(object):
                 NUTSweight=NUTSweight,
                 MALAweight=MALAweight,
                 HMCweight=HMCweight,
-                burn=burn,
+                buffer_size=buffer_size,
                 HMCstepsize=HMCstepsize,
                 HMCsteps=HMCsteps,
                 maxIter=maxIter,
@@ -504,7 +501,6 @@ class PTSampler(object):
 
         # update DE buffer
         if (iter - 1) % self.buffer_size == 0 and (iter - 1) != 0 and self.MPIrank == 0:
-            # self._updateDEbuffer(iter - 1, self.buffer_size)
 
             # broadcast to other chains
             [self.comm.send(self._buffer, dest=rank + 1, tag=222) for rank in range(self.nchain - 1)]
@@ -718,18 +714,32 @@ class PTSampler(object):
 
         """
 
-        self._chainfile = open(self.fname, "a+")
-        for jj in range((iter - self.isave), iter, self.thin):
-            ind = int(jj / self.thin)
-            pt_acc = 1
-            if self.MPIrank < self.nchain - 1 and self.swapProposed != 0:
-                pt_acc = self.nswap_accepted / self.swapProposed
+        # self._chainfile = open(self.fname, "a+")
+        # for jj in range((iter - self.isave), iter, self.thin):
+        #     ind = int(jj / self.thin)
+        #     pt_acc = 1
+        #     if self.MPIrank < self.nchain - 1 and self.swapProposed != 0:
+        #         pt_acc = self.nswap_accepted / self.swapProposed
 
-            self._chainfile.write("\t".join(["%22.22f" % (self._chain[ind, kk]) for kk in range(self.ndim)]))
-            self._chainfile.write(
-                "\t%f\t%f\t%f\t%f\n" % (self._lnprob[ind], self._lnlike[ind], self.naccepted / iter, pt_acc)
-            )
-        self._chainfile.close()
+        #     self._chainfile.write("\t".join(["%22.22f" % (self._buffer[ind, kk]) for kk in range(self.ndim)]))
+        #     self._chainfile.write(
+        #         "\t%f\t%f\t%f\t%f\n" % (self._lnprob[ind], self._lnlike[ind], self.naccepted / iter, pt_acc)
+        #     )
+        # self._chainfile.close()
+
+        ind_min = ((iter - self.buffer_size) // self.thin)
+        ind_max = (iter) // self.thin
+        print(ind_min)
+        print(ind_max)
+
+        pt_acc = 1
+        if self.MPIrank < self.nchain - 1 and self.swapProposed != 0:
+            pt_acc = self.nswap_accepted / self.swapProposed
+
+        to_save = np.column_stack([self._buffer, self._lnprob[ind_min:ind_max], self._lnlike[ind_min:ind_max],
+                                  np.repeat(self.naccepted / iter, self.buffer_size // self.thin), np.repeat(pt_acc, self.buffer_size // self.thin)])
+        with open(self.fname, 'a+') as fname:
+            np.savetxt(fname, to_save)
 
         # write jump statistics files ####
 
@@ -773,10 +783,10 @@ class PTSampler(object):
             it += 1
             for jj in range(ndim):
 
-                diff[jj] = self._buffer[iter - mem + ii, jj] - self.mu[jj]
+                diff[jj] = self._buffer[(iter - mem + ii) % self.buffer_size // self.thin, jj] - self.mu[jj]
                 self.mu[jj] += diff[jj] / it
 
-            self.M2 += np.outer(diff, (self._buffer[iter - mem + ii, :] - self.mu))
+            self.M2 += np.outer(diff, (self._buffer[(iter - mem + ii) % self.buffer_size // self.thin, :] - self.mu))
 
         self.cov[:, :] = self.M2 / (it - 1)
 
@@ -788,19 +798,6 @@ class PTSampler(object):
                     covgroup[ii, jj] = self.cov[group[ii], group[jj]]
 
             self.U[ct], self.S[ct], v = np.linalg.svd(covgroup)
-
-    # update DE buffer samples
-    def _updateDEbuffer(self, iter, burn):
-        """
-        Update Differential Evolution with last burn
-        values in the total chain
-
-        @param iter: Iteration of sampler
-        @param burn: Total number of samples in DE buffer
-
-        """
-
-        self._buffer = self._buffer
 
     # SCAM jump
     def covarianceJumpProposalSCAM(self, x, iter, beta):
