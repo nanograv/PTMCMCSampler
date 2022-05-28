@@ -500,7 +500,7 @@ class PTSampler(object):
             getCovariance = 0
 
         # update DE buffer
-        if (iter - 1) % self.buffer_size == 0 and (iter - 1) != 0 and self.MPIrank == 0:
+        if (iter - 1) % self.buffer_size // self.thin == 0 and (iter - 1) != 0 and self.MPIrank == 0:
 
             # broadcast to other chains
             [self.comm.send(self._buffer, dest=rank + 1, tag=222) for rank in range(self.nchain - 1)]
