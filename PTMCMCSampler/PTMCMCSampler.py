@@ -290,7 +290,6 @@ class PTSampler(object):
 
             # update buffer
             if self.MPIrank == 0:
-                print((iter % self.buffer_size) // self.thin)
                 self._buffer[(iter % self.buffer_size) // self.thin, :] = p0
 
         # write to file
@@ -729,8 +728,6 @@ class PTSampler(object):
 
         ind_min = ((iter - self.buffer_size) // self.thin)
         ind_max = (iter) // self.thin
-        print(ind_min)
-        print(ind_max)
 
         pt_acc = 1
         if self.MPIrank < self.nchain - 1 and self.swapProposed != 0:
