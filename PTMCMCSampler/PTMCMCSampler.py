@@ -421,7 +421,7 @@ class PTSampler(object):
         iter = i0
         self.tstart = time.time()
         runComplete = False
-        Neff = 0
+        # Neff = 0
         while runComplete is False:
             iter += 1
 
@@ -444,15 +444,16 @@ class PTSampler(object):
 
             # stop if reached maximum number of iterations
             if self.MPIrank == 0 and iter >= self.Niter - 1:
+                self._writeToFile(iter)
                 if self.verbose:
                     print("\nRun Complete")
                 runComplete = True
 
-            # stop if reached effective number of samples
-            if self.MPIrank == 0 and int(Neff) > self.neff:
-                if self.verbose:
-                    print("\nRun Complete with {0} effective samples".format(int(Neff)))
-                runComplete = True
+            # # stop if reached effective number of samples
+            # if self.MPIrank == 0 and int(Neff) > self.neff:
+            #     if self.verbose:
+            #         print("\nRun Complete with {0} effective samples".format(int(Neff)))
+            #     runComplete = True
 
             if self.MPIrank == 0 and runComplete:
                 for jj in range(1, self.nchain):
@@ -736,7 +737,7 @@ class PTSampler(object):
         to_save = np.column_stack([self._buffer, self._lnprob[ind_min:ind_max], self._lnlike[ind_min:ind_max],
                                   np.repeat(self.naccepted / iter, self.buffer_size // self.thin), np.repeat(pt_acc, self.buffer_size // self.thin)])
         with open(self.fname, 'a+') as fname:
-            np.savetxt(fname, to_save)
+            np.savetxt(fname, to_save, fmt='%22.22f')
 
         # write jump statistics files ####
 
