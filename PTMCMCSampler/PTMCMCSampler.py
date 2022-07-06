@@ -436,11 +436,10 @@ class PTSampler(object):
             p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
 
             if self.MPIrank > 0:
-                runComplete = self.comm.Iprobe(source=0, tag=55)
-                time.sleep(0.000001)  # trick to get around
-                continue
+                # check for other chains
+                runComplete = self.comm.recv(source=0, tag=55)
+            # for T=0: compute effective number of samples
             else:
-                # for T=0, compute effective number of samples
                 if iter % 1000 == 0 and iter > 2 * self.burn:
                     try:
                         Neff = iter / max(
@@ -469,9 +468,10 @@ class PTSampler(object):
                         print(f"\nRun Complete with {int(Neff)} effective samples")
                     runComplete = True
 
-                if runComplete:
-                    for jj in range(1, self.nchain):
-                        self.comm.send(runComplete, dest=jj, tag=55)
+                # always inform other chains whether the run is complete,
+                # even if that's not the case
+                for jj in range(1, self.nchain):
+                    self.comm.send(runComplete, dest=jj, tag=55)
 
         # Log status of the current chain.
         elapsed = time.time() - self.tstart
@@ -492,49 +492,53 @@ class PTSampler(object):
 
         """
         # update covariance matrix
-        if self.MPIrank == 0 and (iter - 1) % self.covUpdate == 0 and (iter - 1) != 0:
-            self._updateRecursive(iter - 1, self.covUpdate)
+        if self.MPIrank == 0:
+            send_value = None
+            if (iter - 1) % self.covUpdate == 0 and (iter - 1) != 0:
+                self._updateRecursive(iter - 1, self.covUpdate)
+                send_value = self.cov
 
             # broadcast to other chains
-            [self.comm.send(self.cov, dest=rank + 1, tag=111) for rank in range(self.nchain - 1)]
+            for rank in range(self.nchain - 1):
+                self.comm.send(send_value, dest=rank + 1, tag=111)
 
-        # check for sent covariance matrix from T = 0 chain
-        getCovariance = self.comm.Iprobe(source=0, tag=111)
-        time.sleep(0.000001)
-        if self.MPIrank > 0 and getCovariance:
-            self.cov[:, :] = self.comm.recv(source=0, tag=111)
-            for ct, group in enumerate(self.groups):
-                covgroup = np.zeros((len(group), len(group)))
-                for ii in range(len(group)):
-                    for jj in range(len(group)):
-                        covgroup[ii, jj] = self.cov[group[ii], group[jj]]
+        # get covariance matrix from T = 0 chain
+        else:
+            cov = self.comm.recv(source=0, tag=111)
+            if cov is not None:
+                self.cov[:, :] = cov
+                for ct, group in enumerate(self.groups):
+                    covgroup = np.zeros((len(group), len(group)))
+                    for ii in range(len(group)):
+                        for jj in range(len(group)):
+                            covgroup[ii, jj] = self.cov[group[ii], group[jj]]
 
-                self.U[ct], self.S[ct], v = np.linalg.svd(covgroup)
-            getCovariance = 0
+                    self.U[ct], self.S[ct], v = np.linalg.svd(covgroup)
 
         # update DE buffer
-        if self.MPIrank == 0 and (iter - 1) % self.burn == 0 and (iter - 1) != 0:
-            self._updateDEbuffer(iter - 1, self.burn)
+        if self.MPIrank == 0:
+            buffer = None
+            if (iter - 1) % self.burn == 0 and (iter - 1) != 0:
+                self._updateDEbuffer(iter - 1, self.burn)
+                buffer = self._DEbuffer
 
             # broadcast to other chains
-            [self.comm.send(self._DEbuffer, dest=rank + 1, tag=222) for rank in range(self.nchain - 1)]
+            # even if there's no update, so other chains can wait for a reliable response
+            for rank in range(self.nchain - 1):
+                self.comm.send(buffer, dest=rank + 1, tag=222)
 
-        # check for sent DE buffer from T = 0 chain
-        getDEbuf = self.comm.Iprobe(source=0, tag=222)
-        time.sleep(0.000001)
+        if self.MPIrank > 0:
+            buffer = self.comm.recv(source=0, tag=222)
 
-        if self.MPIrank > 0 and getDEbuf:
-            self._DEbuffer = self.comm.recv(source=0, tag=222)
+            if buffer is not None:
+                self._DEbuffer = buffer
 
-            # randomize cycle
-            if self.DEJump not in self.propCycle:
-                self.addProposalToCycle(self.DEJump, self.DEweight)
-                self.randomizeProposalCycle()
+                # randomize cycle
+                if self.DEJump not in self.propCycle:
+                    self.addProposalToCycle(self.DEJump, self.DEweight)
+                    self.randomizeProposalCycle()
 
-            # reset
-            getDEbuf = 0
-
-        # after burn in, add DE jumps
+        # after burn in, add DE jumps;
         if self.MPIrank == 0 and (iter - 1) == self.burn:
             if self.verbose:
                 print("Adding DE jump with weight {0}".format(self.DEweight))
@@ -612,13 +616,15 @@ class PTSampler(object):
         swapAccepted = 0
         swapProposed = 0
 
-        # if Tskip is reached, block until next chain in ladder is ready for
-        # swap proposal
         if self.MPIrank < self.nchain - 1:
             hotter_chain = self.MPIrank + 1
-            swapProposed = iter % self.Tskip == 0
 
-            if swapProposed:
+            # if Tskip is reached, block until next chain in ladder is ready for swap proposal
+            swapProposed = iter % self.Tskip == 0
+            if not swapProposed:
+                # send None to communicate that swap is NOT proposed
+                self.comm.send(None, dest=hotter_chain, tag=18)
+            else:  # swapProposed
                 # send current likelihood for swap proposal
                 self.comm.send(lnlike0, dest=hotter_chain, tag=18)
 
@@ -639,30 +645,23 @@ class PTSampler(object):
                     lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
 
         # check if next lowest temperature is ready to swap
-        elif self.MPIrank > 0:
+        if self.MPIrank > 0:
             cooler_chain = self.MPIrank - 1
-            readyToSwap = self.comm.Iprobe(source=cooler_chain, tag=18)
-            # trick to get around processor using 100% cpu while waiting
-            time.sleep(0.000001)
+            newlnlike = self.comm.recv(source=cooler_chain, tag=18)
+            readyToSwap = bool(newlnlike)
 
-            # hotter chain decides acceptance
+            # determine if swap is accepted and inform lower temp chain
+            # (hotter chain decides acceptance)
             if readyToSwap:
-                newlnlike = self.comm.recv(source=self.MPIrank - 1, tag=18)
 
-                # determine if swap is accepted and tell other chain
                 logChainSwap = (1 / self.ladder[cooler_chain] - 1 / self.ladder[self.MPIrank]) * (lnlike0 - newlnlike)
-
-                if logChainSwap > np.log(np.random.rand()):
-                    swapAccepted = 1
-                else:
-                    swapAccepted = 0
+                swapAccepted = logChainSwap > np.log(np.random.rand())
 
                 # send out result
                 self.comm.send(swapAccepted, dest=cooler_chain, tag=888)
 
                 # perform swap
                 if swapAccepted:
-
                     # exchange likelihood
                     self.comm.send(lnlike0, dest=cooler_chain, tag=18)
                     lnlike0 = newlnlike
