@@ -78,6 +78,53 @@ for MPI support use
 conda install -c conda-forge ptmcmcsampler mpi4py
 ```
 
+#### Via Docker
+
+**Production**:
+
+For production use, the latest release of PTMCMCSampler is installed directly from PyPi.
+```
+# Build the image, tagging it as `ptmcmc:latest`.  
+# 
+# This example includes both optional MPI support and the optional `acor` library 
+# (you can omit either / both).
+docker build --pull --build-arg "MPI=1" --build-arg "ACOR=1" -t ptmcmc --no-cache .
+
+# Run the image, mounting the `data/` subdirectory on your computer 
+# to `/code/data/` inside the Docker container. Note that MPI won't work 
+# if we run as the root user (the default).
+docker run -it --rm --user mcmc_user -v $(pwd)/data:/code/data ptmcmc
+
+# When finished with the container, exit back to the host OS
+CTRL^D
+```
+
+
+**Development**: 
+
+For PTMCMCSampler development, dependencies are installed from `requirements.txt` and 
+`requirements_dev.txt`. 
+No PTMCMCSampler code is omitted from the built image, whose purpose is for testing new code. 
+You can also add `--build-arg "ACOR=1"` to the build command to include the optional `acor` 
+dependency (MPI is always included via `requirements.txt`).
+
+```bash
+# Build the image
+docker build --pull -t ptmcmc --build-arg "TARGET_ENV=dev" --no-cache .
+
+# Run the image, mounting the working directory on the host OS to /code/ inside the container.
+# MPI won't work if we run as the root user (the default).
+docker run -it --rm --user mcmc_user -v $(pwd)/:/code ptmcmc
+
+# Exit back to host OS
+CTRL-D
+```
+
+
+
+
+
+
 ## Attribution
 
 If you make use of this code, please cite:
