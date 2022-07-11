@@ -435,11 +435,8 @@ class PTSampler(object):
             # call PTMCMCOneStep
             p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
 
-            if self.MPIrank > 0:
-                # check for other chains
-                runComplete = self.comm.recv(source=0, tag=55)
             # for T=0: compute effective number of samples
-            else:
+            if self.MPIrank == 0:
                 if iter % 1000 == 0 and iter > 2 * self.burn:
                     try:
                         Neff = iter / max(
@@ -468,10 +465,9 @@ class PTSampler(object):
                         print(f"\nRun Complete with {int(Neff)} effective samples")
                     runComplete = True
 
-                # always inform other chains whether the run is complete,
-                # even if that's not the case
-                for jj in range(1, self.nchain):
-                    self.comm.send(runComplete, dest=jj, tag=55)
+            # always inform other chains whether the run is complete,
+            # even if that's not the case
+            runComplete = self.comm.bcast(runComplete, root=0)
 
         # Log status of the current chain.
         elapsed = time.time() - self.tstart
@@ -492,51 +488,40 @@ class PTSampler(object):
 
         """
         # update covariance matrix
+        cov = None
         if self.MPIrank == 0:
-            send_value = None
             if (iter - 1) % self.covUpdate == 0 and (iter - 1) != 0:
                 self._updateRecursive(iter - 1, self.covUpdate)
-                send_value = self.cov
+                cov = self.cov
+        cov = self.comm.bcast(cov, root=0)
 
-            # broadcast to other chains
-            for rank in range(self.nchain - 1):
-                self.comm.send(send_value, dest=rank + 1, tag=111)
+        if self.MPIrank != 0 and cov is not None:
+            self.cov[:, :] = cov
+            for ct, group in enumerate(self.groups):
+                covgroup = np.zeros((len(group), len(group)))
+                for ii in range(len(group)):
+                    for jj in range(len(group)):
+                        covgroup[ii, jj] = self.cov[group[ii], group[jj]]
 
-        # get covariance matrix from T = 0 chain
-        else:
-            cov = self.comm.recv(source=0, tag=111)
-            if cov is not None:
-                self.cov[:, :] = cov
-                for ct, group in enumerate(self.groups):
-                    covgroup = np.zeros((len(group), len(group)))
-                    for ii in range(len(group)):
-                        for jj in range(len(group)):
-                            covgroup[ii, jj] = self.cov[group[ii], group[jj]]
-
-                    self.U[ct], self.S[ct], v = np.linalg.svd(covgroup)
+                self.U[ct], self.S[ct], v = np.linalg.svd(covgroup)
 
         # update DE buffer
+        buffer = None
         if self.MPIrank == 0:
-            buffer = None
             if (iter - 1) % self.burn == 0 and (iter - 1) != 0:
                 self._updateDEbuffer(iter - 1, self.burn)
                 buffer = self._DEbuffer
 
-            # broadcast to other chains
-            # even if there's no update, so other chains can wait for a reliable response
-            for rank in range(self.nchain - 1):
-                self.comm.send(buffer, dest=rank + 1, tag=222)
+        # broadcast to other chains
+        buffer = self.comm.bcast(buffer, root=0)
 
-        if self.MPIrank > 0:
-            buffer = self.comm.recv(source=0, tag=222)
+        if self.MPIrank > 0 and buffer is not None:
+            self._DEbuffer = buffer
 
-            if buffer is not None:
-                self._DEbuffer = buffer
-
-                # randomize cycle
-                if self.DEJump not in self.propCycle:
-                    self.addProposalToCycle(self.DEJump, self.DEweight)
-                    self.randomizeProposalCycle()
+            # randomize cycle
+            if self.DEJump not in self.propCycle:
+                self.addProposalToCycle(self.DEJump, self.DEweight)
+                self.randomizeProposalCycle()
 
         # after burn in, add DE jumps;
         if self.MPIrank == 0 and (iter - 1) == self.burn:
