@@ -564,8 +564,9 @@ class PTSampler(object):
                 self.naccepted += 1
                 self.jumpDict[jump_name][1] += 1
 
-        # temperature swap
-        swapReturn, p0, lnlike0, lnprob0 = self.PTswap(p0, lnlike0, lnprob0, iter)
+        # temperature swap.
+        # note PTswap() assumes iter is 0-indexed, but it's 1-indexed here
+        swapReturn, p0, lnlike0, lnprob0 = self.PTswap(p0, lnlike0, lnprob0, iter - 1)
 
         # check return value
         if swapReturn != 0:
@@ -598,7 +599,7 @@ class PTSampler(object):
 
         # initialize variables
         swapAccepted = 0
-        swapProposed = iter % self.Tskip == 0
+        swapProposed = (iter % self.Tskip) == 0 and iter != 0
 
         # Only exchange swap messages when a swap will be proposed.
         # Synchronous checks for runComplete guarantee that chains
