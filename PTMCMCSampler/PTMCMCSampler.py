@@ -597,19 +597,15 @@ class PTSampler(object):
         """
 
         # initialize variables
-        readyToSwap = 0
         swapAccepted = 0
-        swapProposed = 0
+        swapProposed = iter % self.Tskip == 0
 
-        if self.MPIrank < self.nchain - 1:
-            hotter_chain = self.MPIrank + 1
-
-            # if Tskip is reached, block until next chain in ladder is ready for swap proposal
-            swapProposed = iter % self.Tskip == 0
-            if not swapProposed:
-                # send None to communicate that swap is NOT proposed
-                self.comm.send(None, dest=hotter_chain, tag=18)
-            else:  # swapProposed
+        # Only exchange swap messages when a swap will be proposed.
+        # Synchronous checks for runComplete guarantee that chains
+        # are executing the same step in parallel,
+        if swapProposed:
+            if self.MPIrank < self.nchain - 1:
+                hotter_chain = self.MPIrank + 1
                 # send current likelihood for swap proposal
                 self.comm.send(lnlike0, dest=hotter_chain, tag=18)
 
@@ -629,15 +625,11 @@ class PTSampler(object):
                     # calculate new posterior values
                     lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
 
-        # check if next lowest temperature is ready to swap
-        if self.MPIrank > 0:
-            cooler_chain = self.MPIrank - 1
-            newlnlike = self.comm.recv(source=cooler_chain, tag=18)
-            readyToSwap = bool(newlnlike)
-
-            # determine if swap is accepted and inform lower temp chain
+            # check if swap is accepted and inform lower temp chain
             # (hotter chain decides acceptance)
-            if readyToSwap:
+            if self.MPIrank > 0:
+                cooler_chain = self.MPIrank - 1
+                newlnlike = self.comm.recv(source=cooler_chain, tag=18)
 
                 logChainSwap = (1 / self.ladder[cooler_chain] - 1 / self.ladder[self.MPIrank]) * (lnlike0 - newlnlike)
                 swapAccepted = logChainSwap > np.log(np.random.rand())
