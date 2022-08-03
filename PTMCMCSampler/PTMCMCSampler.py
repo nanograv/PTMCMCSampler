@@ -165,7 +165,7 @@ class PTSampler(object):
         """
         # get maximum number of iteration
         if maxIter is None and self.MPIrank > 0:
-            maxIter = 4 * Niter
+            maxIter = Niter
         elif maxIter is None and self.MPIrank == 0:
             maxIter = Niter
 
@@ -368,7 +368,7 @@ class PTSampler(object):
 
         # get maximum number of iteration
         if maxIter is None and self.MPIrank > 0:
-            maxIter = 4 * Niter
+            maxIter = Niter
         elif maxIter is None and self.MPIrank == 0:
             maxIter = Niter
 
