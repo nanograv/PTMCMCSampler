@@ -22,6 +22,19 @@ except ImportError:
     pass
 
 
+def shift_array(arr, num, fill_value=0.):
+    result = np.empty_like(arr)
+    if num > 0:
+        result[:num] = fill_value
+        result[num:] = arr[:-num]
+    elif num < 0:
+        result[num:] = fill_value
+        result[:num] = arr[-num:]
+    else:
+        result[:] = arr
+    return result
+
+
 class PTSampler(object):
 
     """
@@ -192,9 +205,8 @@ class PTSampler(object):
         self.nswap_accepted = 0
 
         # set up covariance matrix and DE buffers
-        # TODO: better way of allocating this to save memory
         if self.MPIrank == 0:
-            self._AMbuffer = np.zeros((self.Niter, self.ndim))
+            self._AMbuffer = np.zeros((self.covUpdate, self.ndim))
             self._DEbuffer = np.zeros((self.burn, self.ndim))
 
         # ##### setup default jump proposal distributions ##### #
@@ -288,7 +300,7 @@ class PTSampler(object):
         """
         # update buffer
         if self.MPIrank == 0:
-            self._AMbuffer[iter, :] = p0
+            self._AMbuffer[iter % self.covUpdate, :] = p0
 
         # put results into arrays
         if iter % self.thin == 0:
@@ -441,7 +453,7 @@ class PTSampler(object):
                     Neff = iter / max(
                         1,
                         np.nanmax(
-                            [acor.acor(self._AMbuffer[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
+                            [acor.acor(self._chain[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
                         ),
                     )
                     # print('\n {0} effective samples'.format(Neff))
@@ -776,10 +788,10 @@ class PTSampler(object):
             it += 1
             for jj in range(ndim):
 
-                diff[jj] = self._AMbuffer[iter - mem + ii, jj] - self.mu[jj]
+                diff[jj] = self._AMbuffer[ii, jj] - self.mu[jj]
                 self.mu[jj] += diff[jj] / it
 
-            self.M2 += np.outer(diff, (self._AMbuffer[iter - mem + ii, :] - self.mu))
+            self.M2 += np.outer(diff, (self._AMbuffer[ii, :] - self.mu))
 
         self.cov[:, :] = self.M2 / (it - 1)
 
@@ -802,8 +814,8 @@ class PTSampler(object):
         @param burn: Total number of samples in DE buffer
 
         """
-
-        self._DEbuffer = self._AMbuffer[iter - burn : iter]
+        self._DEbuffer = shift_array(self._DEbuffer, -len(self._AMbuffer))  # shift DEbuffer to the left
+        self._DEbuffer[-len(self._AMbuffer):] = self._AMbuffer  # add new samples to the new empty spaces
 
     # SCAM jump
     def covarianceJumpProposalSCAM(self, x, iter, beta):
