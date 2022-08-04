@@ -572,9 +572,6 @@ class PTSampler(object):
                 self.jumpDict[jump_name][1] += 1
 
         # temperature swap
-        # hold chains until they're all ready to attempt a swap
-        # this will simulate synchronous updating (and keep chains from running away...)
-        self.comm.barrier()
         swapReturn, p0, lnlike0, lnprob0 = self.PTswap(p0, lnlike0, lnprob0, iter)
 
         # check return value
