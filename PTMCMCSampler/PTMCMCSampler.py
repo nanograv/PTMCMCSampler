@@ -453,7 +453,7 @@ class PTSampler(object):
                     Neff = iter / max(
                         1,
                         np.nanmax(
-                            [acor.acor(self._chain[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
+                            [acor.acor(self._chain[self.burn % self.thin : (iter - 1) % self.thin, ii])[0] for ii in range(self.ndim)]
                         ),
                     )
                     # print('\n {0} effective samples'.format(Neff))
