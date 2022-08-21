@@ -431,7 +431,7 @@ class PTSampler(object):
         Neff = 0
         while runComplete is False:
             iter += 1
-
+            self.comm.barrier()  # make sure all processes are at the same iteration
             # call PTMCMCOneStep
             p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
 
@@ -492,7 +492,7 @@ class PTSampler(object):
             [self.comm.send(self.cov, dest=rank + 1, tag=111) for rank in range(self.nchain - 1)]
 
         # check for sent covariance matrix from T = 0 chain
-        getCovariance = self.comm.Iprobe(source=0, tag=111)
+        getCovariance = self.comm.Iprobe(source=0, tag=111)  # NOTE: swap to recv?
         time.sleep(0.000001)
         if getCovariance and self.MPIrank > 0:
             self.cov[:, :] = self.comm.recv(source=0, tag=111)
