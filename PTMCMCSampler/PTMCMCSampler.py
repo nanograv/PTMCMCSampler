@@ -461,14 +461,7 @@ class PTSampler(object):
                     print("\nRun Complete with {0} effective samples".format(int(Neff)))
                 runComplete = True
 
-            if self.MPIrank == 0 and runComplete:
-                for jj in range(1, self.nchain):
-                    self.comm.send(runComplete, dest=jj, tag=55)
-
-            # check for other chains
-            if self.MPIrank > 0:
-                runComplete = self.comm.Iprobe(source=0, tag=55)
-                time.sleep(0.000001)  # trick to get around
+            runComplete = self.comm.bcast(runComplete, root=0)
 
     def PTMCMCOneStep(self, p0, lnlike0, lnprob0, iter):
         """
