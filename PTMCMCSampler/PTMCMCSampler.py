@@ -430,8 +430,9 @@ class PTSampler(object):
         runComplete = False
         Neff = 0
         while runComplete is False:
-            iter += 1
-            self.comm.barrier()  # make sure all processes are at the same iteration
+            if self.MPIrank == 0:
+                iter += 1
+            iter = self.comm.bcast(iter, root=0)
             # call PTMCMCOneStep
             p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
 
@@ -607,6 +608,89 @@ class PTSampler(object):
         readyToSwap = 0
         swapAccepted = 0
         swapProposed = 0
+
+        if iter % self.Tskip == 0:
+            swapProposed = 1
+            swapProposed = self.comm.bcast(swapProposed, root=0)
+
+        # propose swap!
+        if self.MPIrank != self.nchain - 2 and swapProposed == 1:
+            print(self.MPIrank, "proposing swap")
+
+            lnlike0 = self.comm.recv(source=self.MPIrank - 1, tag=18)
+            # send current likelihood for swap proposal
+            self.comm.send(lnlike0, dest=self.MPIrank + 1, tag=18)
+
+            # determine if swap was accepted
+            swapAccepted = self.comm.recv(source=self.MPIrank - 1, tag=888)
+
+            # perform swap
+            if swapAccepted:
+
+                # exchange likelihood
+                lnlike0 = self.comm.recv(source=self.MPIrank + 1, tag=18)
+
+                # exchange parameters
+                pnew = np.empty(self.ndim)
+                self.comm.Sendrecv(
+                    p0, dest=self.MPIrank + 1, sendtag=19, recvbuf=pnew, source=self.MPIrank + 1, recvtag=19
+                )
+                p0 = pnew
+
+                # calculate new posterior values
+                lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
+
+        # hotter chain decides acceptance
+            # if readyToSwap:
+            print(self.MPIrank, "ready to swap")
+            newlnlike = self.comm.recv(source=self.MPIrank - 1, tag=18)
+
+            # determine if swap is accepted and tell other chain
+            logChainSwap = (1 / self.ladder[self.MPIrank - 1] - 1 / self.ladder[self.MPIrank]) * (
+                lnlike0 - newlnlike
+            )
+
+            if logChainSwap > np.log(np.random.rand()):
+                swapAccepted = 1
+            else:
+                swapAccepted = 0
+
+            # send out result
+            self.comm.send(swapAccepted, dest=self.MPIrank - 1, tag=888)
+
+            # perform swap
+            if swapAccepted:
+
+                # exchange likelihood
+                self.comm.send(lnlike0, dest=self.MPIrank - 1, tag=18)
+                lnlike0 = newlnlike
+
+                # exchange parameters
+                pnew = np.empty(self.ndim)
+                self.comm.Sendrecv(
+                    p0, dest=self.MPIrank - 1, sendtag=19, recvbuf=pnew, source=self.MPIrank - 1, recvtag=19
+                )
+                p0 = pnew
+
+                # calculate new posterior values
+                lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
+
+        # Return values for colder chain: 0=nothing happened; 1=swap proposed,
+        # not accepted; 2=swap proposed & accepted
+        if swapProposed:
+            if swapAccepted:
+                swapReturn = 2
+            else:
+                swapReturn = 1
+        else:
+            swapReturn = 0
+        self.comm.barrier()  # wait until we're all here!
+
+        return swapReturn, p0, lnlike0, lnprob0
+
+
+
+
 
         # if Tskip is reached, block until next chain in ladder is ready for
         # swap proposal
