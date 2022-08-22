@@ -146,7 +146,7 @@ class PTSampler(object):
         NUTSweight=20,
         HMCweight=20,
         MALAweight=0,
-        burn=10000,
+        burn=50000,
         HMCstepsize=0.1,
         HMCsteps=300,
         maxIter=None,
@@ -165,7 +165,7 @@ class PTSampler(object):
         """
         # get maximum number of iteration
         if maxIter is None and self.MPIrank > 0:
-            maxIter = 2 * Niter
+            maxIter = Niter
         elif maxIter is None and self.MPIrank == 0:
             maxIter = Niter
 
@@ -368,7 +368,7 @@ class PTSampler(object):
 
         # get maximum number of iteration
         if maxIter is None and self.MPIrank > 0:
-            maxIter = 2 * Niter
+            maxIter = Niter
         elif maxIter is None and self.MPIrank == 0:
             maxIter = Niter
 
