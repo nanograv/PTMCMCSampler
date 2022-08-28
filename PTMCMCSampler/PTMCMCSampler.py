@@ -87,12 +87,21 @@ class PTSampler(object):
         outDir="./chains",
         verbose=True,
         resume=False,
+        seed=None,
     ):
 
         # MPI initialization
         self.comm = comm
         self.MPIrank = self.comm.Get_rank()
         self.nchain = self.comm.Get_size()
+
+        if self.MPIrank == 0:
+            ss = np.random.SeedSequence(seed)
+            child_seeds = ss.spawn(self.nchain)
+            self.stream = [np.random.default_rng(s) for s in child_seeds]
+        else:
+            self.stream = None
+        self.stream = comm.scatter(self.stream, root=0)
 
         self.ndim = ndim
         self.logl = _function_wrapper(logl, loglargs, loglkwargs)
@@ -567,7 +576,7 @@ class PTSampler(object):
 
             # hastings step
             diff = newlnprob - lnprob0 + qxy
-            if diff > np.log(np.random.rand()):
+            if diff > np.log(self.stream.random()):
 
                 # accept jump
                 p0, lnlike0, lnprob0 = y, newlnlike, newlnprob
@@ -612,7 +621,7 @@ class PTSampler(object):
                 log_acc_ratio += log_Ls[swap_map[swap_chain]] / Ts[swap_chain + 1]
 
                 acc_ratio = np.exp(log_acc_ratio)
-                if np.random.uniform() <= acc_ratio:
+                if self.stream.uniform() <= acc_ratio:
                     swap_map[swap_chain], swap_map[swap_chain + 1] = swap_map[swap_chain + 1], swap_map[swap_chain]
                     self.nswap_accepted += 1
                     self.swapProposed += 1
@@ -771,11 +780,11 @@ class PTSampler(object):
         qxy = 0
 
         # choose group
-        jumpind = np.random.randint(0, len(self.groups))
+        jumpind = self.stream.integers(0, len(self.groups))
         ndim = len(self.groups[jumpind])
 
         # adjust step size
-        prob = np.random.rand()
+        prob = self.stream.random()
 
         # large jump
         if prob > 0.97:
@@ -802,14 +811,14 @@ class PTSampler(object):
         # y = np.dot(self.U.T, x[self.covinds])
 
         # make correlated componentwise adaptive jump
-        ind = np.unique(np.random.randint(0, ndim, 1))
+        ind = np.unique(self.stream.integers(0, ndim, 1))
         neff = len(ind)
         cd = 2.4 / np.sqrt(2 * neff) * scale
 
-        # y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.S[ind])
+        # y[ind] = y[ind] + self.stream.standard_normal(neff) * cd * np.sqrt(self.S[ind])
         # q[self.covinds] = np.dot(self.U, y)
         q[self.groups[jumpind]] += (
-            np.random.randn() * cd * np.sqrt(self.S[jumpind][ind]) * self.U[jumpind][:, ind].flatten()
+            self.stream.standard_normal() * cd * np.sqrt(self.S[jumpind][ind]) * self.U[jumpind][:, ind].flatten()
         )
 
         return q, qxy
@@ -833,10 +842,10 @@ class PTSampler(object):
         qxy = 0
 
         # choose group
-        jumpind = np.random.randint(0, len(self.groups))
+        jumpind = self.stream.integers(0, len(self.groups))
 
         # adjust step size
-        prob = np.random.rand()
+        prob = self.stream.random()
 
         # large jump
         if prob > 0.97:
@@ -866,7 +875,7 @@ class PTSampler(object):
         neff = len(ind)
         cd = 2.4 / np.sqrt(2 * neff) * scale
 
-        y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.S[jumpind][ind])
+        y[ind] = y[ind] + self.stream.standard_normal(neff) * cd * np.sqrt(self.S[jumpind][ind])
         q[self.groups[jumpind]] = np.dot(self.U[jumpind], y)
 
         return q, qxy
@@ -891,28 +900,28 @@ class PTSampler(object):
         qxy = 0
 
         # choose group
-        jumpind = np.random.randint(0, len(self.groups))
+        jumpind = self.stream.integers(0, len(self.groups))
         ndim = len(self.groups[jumpind])
 
         bufsize = len(self._DEbuffer)
 
         # draw a random integer from 0 - iter
-        mm = np.random.randint(0, bufsize)
-        nn = np.random.randint(0, bufsize)
+        mm = self.stream.integers(0, bufsize)
+        nn = self.stream.integers(0, bufsize)
 
         # make sure mm and nn are not the same iteration
         while mm == nn:
-            nn = np.random.randint(0, bufsize)
+            nn = self.stream.integers(0, bufsize)
 
         # get jump scale size
-        prob = np.random.rand()
+        prob = self.stream.random()
 
         # mode jump
         if prob > 0.5:
             scale = 1.0
 
         else:
-            scale = np.random.rand() * 2.4 / np.sqrt(2 * ndim) * np.sqrt(1 / beta)
+            scale = self.stream.random() * 2.4 / np.sqrt(2 * ndim) * np.sqrt(1 / beta)
 
         for ii in range(ndim):
 
@@ -979,7 +988,7 @@ class PTSampler(object):
 
         # get random integers
         index = np.arange(length)
-        np.random.shuffle(index)
+        self.stream.shuffle(index)
 
         # randomize proposal cycle
         self.randomizedPropCycle = [self.propCycle[ind] for ind in index]
@@ -995,7 +1004,7 @@ class PTSampler(object):
         length = len(self.propCycle)
 
         # call function
-        ind = np.random.randint(0, length)
+        ind = self.stream.integers(0, length)
         q, qxy = self.propCycle[ind](x, iter, 1 / self.temp)
 
         # axuilary jump
