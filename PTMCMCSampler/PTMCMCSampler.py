@@ -97,7 +97,8 @@ class PTSampler(object):
 
         if self.MPIrank == 0:
             ss = np.random.SeedSequence(seed)
-            child_seeds = ss.spawn(self.nchain)
+            print(ss.entropy)
+            child_seeds = ss.generate_state(self.nchain)
             self.stream = [np.random.default_rng(s) for s in child_seeds]
         else:
             self.stream = None
@@ -605,8 +606,8 @@ class PTSampler(object):
         """
         Ts = self.ladder
 
-        log_Ls = self.comm.allgather(lnlike0)  # list of likelihoods from each chain
-        p0s = self.comm.allgather(p0)  # list of parameter arrays from each chain
+        log_Ls = self.comm.gather(lnlike0, root=0)  # list of likelihoods from each chain
+        p0s = self.comm.gather(p0, root=0)  # list of parameter arrays from each chain
         
         if self.MPIrank == 0:
             # set up map to help keep track of swaps
