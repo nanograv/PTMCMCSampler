@@ -97,7 +97,6 @@ class PTSampler(object):
 
         if self.MPIrank == 0:
             ss = np.random.SeedSequence(seed)
-            print(ss.entropy)
             child_seeds = ss.generate_state(self.nchain)
             self.stream = [np.random.default_rng(s) for s in child_seeds]
         else:
