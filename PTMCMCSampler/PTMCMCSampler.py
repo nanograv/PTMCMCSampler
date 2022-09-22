@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import time
@@ -20,6 +21,8 @@ except ImportError:
         "effective chain length for output in the chain file."
     )
     pass
+
+logger = logging.getLogger(__name__)
 
 
 class PTSampler(object):
@@ -452,7 +455,10 @@ class PTSampler(object):
             # stop if reached maximum number of iterations
             if self.MPIrank == 0 and iter >= self.Niter - 1:
                 if self.verbose:
-                    print("\nRun Complete")
+                    # Print a message when the T=0 process
+                    # decides overall completion.
+                    elapsed = time.time() - self.tstart
+                    print(f"\nRun Complete in {elapsed:.2f} s")
                 runComplete = True
 
             # stop if reached effective number of samples
@@ -469,6 +475,10 @@ class PTSampler(object):
             if self.MPIrank > 0:
                 runComplete = self.comm.Iprobe(source=0, tag=55)
                 time.sleep(0.000001)  # trick to get around
+
+        # Log status of the current chain.
+        elapsed = time.time() - self.tstart
+        logger.debug(f"Chain done in {elapsed:.2f} s")
 
     def PTMCMCOneStep(self, p0, lnlike0, lnprob0, iter):
         """
