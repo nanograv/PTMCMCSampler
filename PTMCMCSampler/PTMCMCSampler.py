@@ -413,12 +413,9 @@ class PTSampler(object):
             lp = self.logp(p0)
 
             if lp == float(-np.inf):
-
                 lnprob0 = -np.inf
                 lnlike0 = -np.inf
-
             else:
-
                 lnlike0 = self.logl(p0)
                 lnprob0 = 1 / self.temp * lnlike0 + lp
 
@@ -438,43 +435,43 @@ class PTSampler(object):
             # call PTMCMCOneStep
             p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
 
-            # compute effective number of samples
-            if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
-                try:
-                    Neff = iter / max(
-                        1,
-                        np.nanmax(
-                            [acor.acor(self._AMbuffer[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
-                        ),
-                    )
-                    # print('\n {0} effective samples'.format(Neff))
-                except NameError:
-                    Neff = 0
-                    pass
-
-            # stop if reached maximum number of iterations
-            if self.MPIrank == 0 and iter >= self.Niter - 1:
-                if self.verbose:
-                    # Print a message when the T=0 process
-                    # decides overall completion.
-                    elapsed = time.time() - self.tstart
-                    print(f"\nRun Complete in {elapsed:.2f} s")
-                runComplete = True
-
-            # stop if reached effective number of samples
-            if self.MPIrank == 0 and int(Neff) > self.neff:
-                if self.verbose:
-                    print("\nRun Complete with {0} effective samples".format(int(Neff)))
-                runComplete = True
-
-            if self.MPIrank == 0 and runComplete:
-                for jj in range(1, self.nchain):
-                    self.comm.send(runComplete, dest=jj, tag=55)
-
-            # check for other chains
             if self.MPIrank > 0:
                 runComplete = self.comm.Iprobe(source=0, tag=55)
                 time.sleep(0.000001)  # trick to get around
+                continue
+            else:
+                # for T=0, compute effective number of samples
+                if iter % 1000 == 0 and iter > 2 * self.burn:
+                    try:
+                        Neff = iter / max(
+                            1,
+                            np.nanmax(
+                                [acor.acor(self._AMbuffer[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
+                            ),
+                        )
+                        # print('\n {0} effective samples'.format(Neff))
+                    except NameError:
+                        Neff = 0
+                        pass
+
+                # stop if reached maximum number of iterations
+                if iter >= self.Niter - 1:
+                    if self.verbose:
+                        # Print a message when the T=0 process
+                        # decides overall completion.
+                        elapsed = time.time() - self.tstart
+                        print(f"\nRun Complete in {elapsed:.2f} s")
+                    runComplete = True
+
+                # stop if reached effective number of samples
+                if int(Neff) > self.neff:
+                    if self.verbose:
+                        print(f"\nRun Complete with {int(Neff)} effective samples")
+                    runComplete = True
+
+                if runComplete:
+                    for jj in range(1, self.nchain):
+                        self.comm.send(runComplete, dest=jj, tag=55)
 
         # Log status of the current chain.
         elapsed = time.time() - self.tstart
@@ -495,7 +492,7 @@ class PTSampler(object):
 
         """
         # update covariance matrix
-        if (iter - 1) % self.covUpdate == 0 and (iter - 1) != 0 and self.MPIrank == 0:
+        if self.MPIrank == 0 and (iter - 1) % self.covUpdate == 0 and (iter - 1) != 0:
             self._updateRecursive(iter - 1, self.covUpdate)
 
             # broadcast to other chains
@@ -504,7 +501,7 @@ class PTSampler(object):
         # check for sent covariance matrix from T = 0 chain
         getCovariance = self.comm.Iprobe(source=0, tag=111)
         time.sleep(0.000001)
-        if getCovariance and self.MPIrank > 0:
+        if self.MPIrank > 0 and getCovariance:
             self.cov[:, :] = self.comm.recv(source=0, tag=111)
             for ct, group in enumerate(self.groups):
                 covgroup = np.zeros((len(group), len(group)))
@@ -516,7 +513,7 @@ class PTSampler(object):
             getCovariance = 0
 
         # update DE buffer
-        if (iter - 1) % self.burn == 0 and (iter - 1) != 0 and self.MPIrank == 0:
+        if self.MPIrank == 0 and (iter - 1) % self.burn == 0 and (iter - 1) != 0:
             self._updateDEbuffer(iter - 1, self.burn)
 
             # broadcast to other chains
@@ -526,7 +523,7 @@ class PTSampler(object):
         getDEbuf = self.comm.Iprobe(source=0, tag=222)
         time.sleep(0.000001)
 
-        if getDEbuf and self.MPIrank > 0:
+        if self.MPIrank > 0 and getDEbuf:
             self._DEbuffer = self.comm.recv(source=0, tag=222)
 
             # randomize cycle
@@ -538,7 +535,7 @@ class PTSampler(object):
             getDEbuf = 0
 
         # after burn in, add DE jumps
-        if (iter - 1) == self.burn and self.MPIrank == 0:
+        if self.MPIrank == 0 and (iter - 1) == self.burn:
             if self.verbose:
                 print("Adding DE jump with weight {0}".format(self.DEweight))
             self.addProposalToCycle(self.DEJump, self.DEweight)
@@ -562,11 +559,8 @@ class PTSampler(object):
             lp = self.logp(y)
 
             if lp == -np.inf:
-
                 newlnprob = -np.inf
-
             else:
-
                 newlnlike = self.logl(y)
                 newlnprob = 1 / self.temp * newlnlike + lp
 
@@ -620,35 +614,34 @@ class PTSampler(object):
 
         # if Tskip is reached, block until next chain in ladder is ready for
         # swap proposal
-        if iter % self.Tskip == 0 and self.MPIrank < self.nchain - 1:
-            swapProposed = 1
+        if self.MPIrank < self.nchain - 1:
+            hotter_chain = self.MPIrank + 1
+            swapProposed = iter % self.Tskip == 0
 
-            # send current likelihood for swap proposal
-            self.comm.send(lnlike0, dest=self.MPIrank + 1, tag=18)
+            if swapProposed:
+                # send current likelihood for swap proposal
+                self.comm.send(lnlike0, dest=hotter_chain, tag=18)
 
-            # determine if swap was accepted
-            swapAccepted = self.comm.recv(source=self.MPIrank + 1, tag=888)
+                # determine if swap was accepted
+                swapAccepted = self.comm.recv(source=hotter_chain, tag=888)
 
-            # perform swap
-            if swapAccepted:
+                # perform swap
+                if swapAccepted:
+                    # exchange likelihood
+                    lnlike0 = self.comm.recv(source=hotter_chain, tag=18)
 
-                # exchange likelihood
-                lnlike0 = self.comm.recv(source=self.MPIrank + 1, tag=18)
+                    # exchange parameters
+                    pnew = np.empty(self.ndim)
+                    self.comm.Sendrecv(p0, dest=hotter_chain, sendtag=19, recvbuf=pnew, source=hotter_chain, recvtag=19)
+                    p0 = pnew
 
-                # exchange parameters
-                pnew = np.empty(self.ndim)
-                self.comm.Sendrecv(
-                    p0, dest=self.MPIrank + 1, sendtag=19, recvbuf=pnew, source=self.MPIrank + 1, recvtag=19
-                )
-                p0 = pnew
-
-                # calculate new posterior values
-                lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
+                    # calculate new posterior values
+                    lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
 
         # check if next lowest temperature is ready to swap
         elif self.MPIrank > 0:
-
-            readyToSwap = self.comm.Iprobe(source=self.MPIrank - 1, tag=18)
+            cooler_chain = self.MPIrank - 1
+            readyToSwap = self.comm.Iprobe(source=cooler_chain, tag=18)
             # trick to get around processor using 100% cpu while waiting
             time.sleep(0.000001)
 
@@ -657,9 +650,7 @@ class PTSampler(object):
                 newlnlike = self.comm.recv(source=self.MPIrank - 1, tag=18)
 
                 # determine if swap is accepted and tell other chain
-                logChainSwap = (1 / self.ladder[self.MPIrank - 1] - 1 / self.ladder[self.MPIrank]) * (
-                    lnlike0 - newlnlike
-                )
+                logChainSwap = (1 / self.ladder[cooler_chain] - 1 / self.ladder[self.MPIrank]) * (lnlike0 - newlnlike)
 
                 if logChainSwap > np.log(np.random.rand()):
                     swapAccepted = 1
@@ -667,20 +658,18 @@ class PTSampler(object):
                     swapAccepted = 0
 
                 # send out result
-                self.comm.send(swapAccepted, dest=self.MPIrank - 1, tag=888)
+                self.comm.send(swapAccepted, dest=cooler_chain, tag=888)
 
                 # perform swap
                 if swapAccepted:
 
                     # exchange likelihood
-                    self.comm.send(lnlike0, dest=self.MPIrank - 1, tag=18)
+                    self.comm.send(lnlike0, dest=cooler_chain, tag=18)
                     lnlike0 = newlnlike
 
                     # exchange parameters
                     pnew = np.empty(self.ndim)
-                    self.comm.Sendrecv(
-                        p0, dest=self.MPIrank - 1, sendtag=19, recvbuf=pnew, source=self.MPIrank - 1, recvtag=19
-                    )
+                    self.comm.Sendrecv(p0, dest=cooler_chain, sendtag=19, recvbuf=pnew, source=cooler_chain, recvtag=19)
                     p0 = pnew
 
                     # calculate new posterior values
