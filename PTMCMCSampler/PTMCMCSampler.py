@@ -585,7 +585,7 @@ class PTSampler(object):
                 self.naccepted += 1
                 self.jumpDict[jump_name][1] += 1
         # temperature swap
-        if iter % self.Tskip == 0:
+        if iter % self.Tskip == 0 and self.nchain > 1:
             p0, lnlike0, lnprob0 = self.pt_swap(p0, lnlike0)
         # swapReturn, p0, lnlike0, lnprob0 = self.PTswap(p0, lnlike0, lnprob0, iter)
 
