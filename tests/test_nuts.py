@@ -15,10 +15,10 @@ class GaussianLikelihood(object):
         self.b = np.ones(ndim) * pmax
 
     def lnlikefn(self, x):
-        return -0.5 * np.sum(x ** 2) - len(x) * 0.5 * np.log(2 * np.pi)
+        return -0.5 * np.sum(x**2) - len(x) * 0.5 * np.log(2 * np.pi)
 
     def lnlikefn_grad(self, x):
-        ll = -0.5 * np.sum(x ** 2) - len(x) * 0.5 * np.log(2 * np.pi)
+        ll = -0.5 * np.sum(x**2) - len(x) * 0.5 * np.log(2 * np.pi)
         ll_grad = -x
         return ll, ll_grad
 

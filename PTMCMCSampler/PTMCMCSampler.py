@@ -705,7 +705,7 @@ class PTSampler(object):
                 tstep = np.exp(np.log(Tmax / Tmin) / (self.nchain - 1))
             ladder = np.zeros(self.nchain)
             for ii in range(self.nchain):
-                ladder[ii] = Tmin * tstep ** ii
+                ladder[ii] = Tmin * tstep**ii
         else:
             ladder = np.array([1])
 
