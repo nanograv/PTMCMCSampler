@@ -22,7 +22,7 @@ except ImportError:
     pass
 
 
-def shift_array(arr, num, fill_value=0.):
+def shift_array(arr, num, fill_value=0.0):
     result = np.empty_like(arr)
     if num > 0:
         result[:num] = fill_value
@@ -461,9 +461,7 @@ class PTSampler(object):
                 try:
                     Neff = iter / max(
                         1,
-                        np.nanmax(
-                            [acor.acor(self._chain[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
-                        ),
+                        np.nanmax([acor.acor(self._chain[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]),
                     )
                     # print('\n {0} effective samples'.format(Neff))
                 except NameError:
@@ -505,9 +503,7 @@ class PTSampler(object):
             # broadcast to other chains
             [self.comm.send(self.cov, dest=rank + 1, tag=111) for rank in range(self.nchain - 1)]
 
-        # check for sent covariance matrix from T = 0 chain
-        # getCovariance = self.comm.Iprobe(source=0, tag=111)  # NOTE: swap to recv?
-        # time.sleep(0.000001)
+        # update covariance matrix
         if (iter - 1) % self.covUpdate == 0 and (iter - 1) != 0 and self.MPIrank > 0:
             self.cov[:, :] = self.comm.recv(source=0, tag=111)
             for ct, group in enumerate(self.groups):
@@ -517,7 +513,6 @@ class PTSampler(object):
                         covgroup[ii, jj] = self.cov[group[ii], group[jj]]
 
                 self.U[ct], self.S[ct], v = np.linalg.svd(covgroup)
-            # getCovariance = 0
 
         # update DE buffer
         if (iter - 1) % self.burn == 0 and (iter - 1) != 0 and self.MPIrank == 0:
@@ -526,10 +521,7 @@ class PTSampler(object):
             # broadcast to other chains
             [self.comm.send(self._DEbuffer, dest=rank + 1, tag=222) for rank in range(self.nchain - 1)]
 
-        # # check for sent DE buffer from T = 0 chain
-        # getDEbuf = self.comm.Iprobe(source=0, tag=222)
-        # time.sleep(0.000001)
-
+        # update DE buffer
         if (iter - 1) % self.burn == 0 and (iter - 1) != 0 and self.MPIrank > 0:
             self._DEbuffer = self.comm.recv(source=0, tag=222)
 
@@ -537,9 +529,6 @@ class PTSampler(object):
             if self.DEJump not in self.propCycle:
                 self.addProposalToCycle(self.DEJump, self.DEweight)
                 self.randomizeProposalCycle()
-
-            # reset
-            getDEbuf = 0
 
         # after burn in, add DE jumps
         if (iter - 1) == self.burn and self.MPIrank == 0:
@@ -586,28 +575,36 @@ class PTSampler(object):
                 self.jumpDict[jump_name][1] += 1
         # temperature swap
         if iter % self.Tskip == 0 and self.nchain > 1:
-            p0, lnlike0, lnprob0 = self.pt_swap(p0, lnlike0)
-        # swapReturn, p0, lnlike0, lnprob0 = self.PTswap(p0, lnlike0, lnprob0, iter)
-
-        # check return value
-        # if swapReturn != 0:
-        #     self.swapProposed += 1
-        #     if swapReturn == 2:
-        #         self.nswap_accepted += 1
+            p0, lnlike0, lnprob0 = self.PTswap(p0, lnlike0)
 
         self.updateChains(p0, lnlike0, lnprob0, iter)
 
         return p0, lnlike0, lnprob0
 
-    def pt_swap(self, p0, lnlike0):
+    def PTswap(self, p0, lnlike0, lnprob0, iter):
         """
+        Do parallel tempering swap.
+
+        @param p0: current parameter vector
+        @param lnlike0: current log-likelihood
+        @param lnprob0: current log posterior value
+        @param iter: current iteration number
+
+        @return swapReturn: 0 = no swap proposed,
+        1 = swap proposed and rejected,
+        2 = swap proposed and accepted
+
+        @return p0: new parameter vector
+        @return lnlike0: new log-likelihood
+        @return lnprob0: new log posterior value
+
         Repurposed from Neil Cornish/Bence Becsy's code:
         """
         Ts = self.ladder
 
         log_Ls = self.comm.gather(lnlike0, root=0)  # list of likelihoods from each chain
         p0s = self.comm.gather(p0, root=0)  # list of parameter arrays from each chain
-        
+
         if self.MPIrank == 0:
             # set up map to help keep track of swaps
             swap_map = list(range(self.nchain))
@@ -628,7 +625,7 @@ class PTSampler(object):
                 else:
                     self.swapProposed += 1
 
-            #loop through the chains and record the new samples and log_Ls
+            # loop through the chains and record the new samples and log_Ls
             for j in range(self.nchain):
                 p0s[j] = p0s[swap_map[j]]
                 log_Ls[j] = log_Ls[swap_map[j]]
@@ -659,7 +656,7 @@ class PTSampler(object):
                 tstep = np.exp(np.log(Tmax / Tmin) / (self.nchain - 1))
             ladder = np.zeros(self.nchain)
             for ii in range(self.nchain):
-                ladder[ii] = Tmin * tstep ** ii
+                ladder[ii] = Tmin * tstep**ii
         else:
             ladder = np.array([1])
 
@@ -758,7 +755,7 @@ class PTSampler(object):
         """
 
         self._DEbuffer = shift_array(self._DEbuffer, -len(self._AMbuffer))  # shift DEbuffer to the left
-        self._DEbuffer[-len(self._AMbuffer):] = self._AMbuffer  # add new samples to the new empty spaces
+        self._DEbuffer[-len(self._AMbuffer) :] = self._AMbuffer  # add new samples to the new empty spaces
 
     # SCAM jump
     def covarianceJumpProposalSCAM(self, x, iter, beta):
@@ -801,8 +798,6 @@ class PTSampler(object):
         else:
             scale = 1.0
 
-        # scale = np.random.uniform(0.5, 10)
-
         # adjust scale based on temperature
         if self.temp <= 100:
             scale *= np.sqrt(self.temp)
@@ -815,8 +810,6 @@ class PTSampler(object):
         neff = len(ind)
         cd = 2.4 / np.sqrt(2 * neff) * scale
 
-        # y[ind] = y[ind] + self.stream.standard_normal(neff) * cd * np.sqrt(self.S[ind])
-        # q[self.covinds] = np.dot(self.U, y)
         q[self.groups[jumpind]] += (
             self.stream.standard_normal() * cd * np.sqrt(self.S[jumpind][ind]) * self.U[jumpind][:, ind].flatten()
         )
