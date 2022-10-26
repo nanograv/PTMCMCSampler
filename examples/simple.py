@@ -24,7 +24,7 @@ class GaussianLikelihood(object):
         self.mu = np.random.uniform(pmin, pmax, ndim)
 
         # ... and a positive definite, non-trivial covariance matrix.
-        cov = 0.5 - np.random.rand(ndim ** 2).reshape((ndim, ndim))
+        cov = 0.5 - np.random.rand(ndim**2).reshape((ndim, ndim))
         cov = np.triu(cov)
         cov += cov.T - np.diag(cov.diagonal())
         self.cov = np.dot(cov, cov)
@@ -63,7 +63,7 @@ glo = GaussianLikelihood(ndim=ndim, pmin=pmin, pmax=pmax)
 
 # Set the start position and the covariance
 p0 = np.random.uniform(pmin, pmax, ndim)
-cov = np.eye(ndim) * 0.1 ** 2
+cov = np.eye(ndim) * 0.1**2
 
 
 # In[5]:

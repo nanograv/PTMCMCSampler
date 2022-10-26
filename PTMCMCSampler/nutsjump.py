@@ -225,10 +225,10 @@ class MALAJump(GradientJump):
         dist = np.random.randn()
 
         # Do the leapfrog
-        mq0 = q0 + 0.5 * vec * self.cd ** 2 * np.dot(vec, grad0) / 2 / val
+        mq0 = q0 + 0.5 * vec * self.cd**2 * np.dot(vec, grad0) / 2 / val
         q1 = mq0 + dist * vec * self.cd / np.sqrt(val)
         logp1, grad1 = self.func_grad_white(q1)
-        mq1 = q1 + 0.5 * vec * self.cd ** 2 * np.dot(vec, grad1) / 2 / val
+        mq1 = q1 + 0.5 * vec * self.cd**2 * np.dot(vec, grad1) / 2 / val
 
         qxy = 0.5 * (np.sum((mq0 - q1) ** 2 / val) - np.sum((mq1 - q0) ** 2 / val))
 
@@ -454,8 +454,8 @@ class NUTSJump(GradientJump):
 
         a = 2.0 * float((acceptprob > 0.5)) - 1.0
         # Keep moving epsilon in that direction until acceptprob crosses 0.5.
-        while (acceptprob ** a) > (2.0 ** (-a)):
-            epsilon = epsilon * (2.0 ** a)
+        while (acceptprob**a) > (2.0 ** (-a)):
+            epsilon = epsilon * (2.0**a)
             _, rprime, _, logpprime = self.leapfrog(theta0, r0, grad0, epsilon)
 
             acceptprob = np.exp(self.loghamiltonian(logpprime, rprime) - self.loghamiltonian(logp0, r0))
@@ -463,7 +463,7 @@ class NUTSJump(GradientJump):
         return epsilon
 
     def stop_criterion(self, thetaminus, thetaplus, rminus, rplus, force_trajlen, index):
-        """ Compute the stop condition in the main loop
+        """Compute the stop condition in the main loop
         dot(dtheta, rminus) >= 0 & dot(dtheta, rplus >= 0)
 
         INPUTS
@@ -809,7 +809,7 @@ class NUTSJump(GradientJump):
             if iter <= self.nburn:
                 # Still in the burn-in phase. So adjust epsilon
                 self.epsilon = np.exp(self.mu - np.sqrt(self.iter) / self.gamma * self.Hbar)
-                eta = self.iter ** -self.kappa
+                eta = self.iter**-self.kappa
                 self.epsilonbar = np.exp((1.0 - eta) * np.log(self.epsilonbar) + eta * np.log(self.epsilon))
 
             else:

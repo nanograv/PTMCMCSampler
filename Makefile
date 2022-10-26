@@ -35,11 +35,7 @@ init:
 	@./venv/bin/python3 -m pip install -e .
 
 format:
-	black .
-
-lint:
-	black --check .
-	flake8 .
+	pre-commit run --all-files
 
 clean: clean-build clean-pyc clean-test ## remove all build, test, coverage and Python artifacts
 
@@ -61,7 +57,7 @@ clean-test: ## remove test and coverage artifacts
 	rm -f .coverage
 	rm -fr htmlcov/
 
-test: lint ## run tests quickly with the default Python
+test: format ## run tests quickly with the default Python
 	pytest -v --durations=10 --full-trace --cov-report html --cov-config .coveragerc --cov=PTMCMCSampler tests
 
 coverage: test ## check code coverage quickly with the default Python
@@ -74,7 +70,7 @@ dist: clean ## builds source and wheel package
 	ls -l dist
 
 test-sdist: ## Test source distribution
-	mkdir tmp  
+	mkdir tmp
 	cd tmp
 	python -m venv venv-sdist
 	venv-sdist/bin/python -m pip install --upgrade pip setuptools wheel
@@ -83,7 +79,7 @@ test-sdist: ## Test source distribution
 	rm -rf tmp venv-sdist
 
 test-wheel: ## Test wheel
-	mkdir tmp2  
+	mkdir tmp2
 	cd tmp2
 	python -m venv venv-wheel
 	venv-wheel/bin/python -m pip install --upgrade pip setuptools

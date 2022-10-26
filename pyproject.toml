@@ -7,7 +7,7 @@ multi_line_output = 3
 
 [tool.black]
 line-length = 120
-target_version = ['py36']
+target_version = ['py37', 'py38', 'py39', 'py310']
 include = '\.pyi?$'
 exclude = '''
 
@@ -23,7 +23,7 @@ exclude = '''
     | dist
     | docs
     | venv
-    | examples 
+    | examples
   )/
 )
 '''

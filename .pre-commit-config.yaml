@@ -1,16 +1,16 @@
 repos:
 -   repo: https://github.com/ambv/black
-    rev: 19.10b0
+    rev: 22.10.0
     hooks:
     - id: black
-      args: ["--config=pyproject.toml", "--check"]
+      args: ["--config=pyproject.toml"]
 -   repo: https://gitlab.com/pycqa/flake8
-    rev: "3.7.7"
+    rev: 5.0.4
     hooks:
     - id: flake8
       args: ["--config=.flake8"]
 - repo: https://github.com/timothycrosley/isort
-  rev: 5.6.1
+  rev: 5.10.1
   hooks:
     - id: isort
 
