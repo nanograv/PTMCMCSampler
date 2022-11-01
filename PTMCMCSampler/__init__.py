@@ -1,8 +1,5 @@
-__version__ = "2.0.0"
-
 from PTMCMCSampler import PTMCMCSampler  # noqa: F401
 
+from .version import version
 
-def test():
-    # Run some tests here
-    print("{0} tests have passed".format(0))
+__version__ = version

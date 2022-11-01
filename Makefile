@@ -65,8 +65,7 @@ coverage: test ## check code coverage quickly with the default Python
 
 
 dist: clean ## builds source and wheel package
-	python setup.py sdist
-	python setup.py bdist_wheel
+	python -m build --sdist --wheel
 	ls -l dist
 
 test-sdist: ## Test source distribution
