@@ -2,7 +2,6 @@ from setuptools import setup
 
 setup(
     name="ptmcmcsampler",
-    version="2.0.0",
     author="Justin A. Ellis",
     author_email="justin.ellis18@gmail.com",
     packages=["PTMCMCSampler"],

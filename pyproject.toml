@@ -27,9 +27,13 @@ exclude = '''
   )/
 )
 '''
+
+[tool.setuptools_scm]
+
 [build-system]
 requires = [
-    "setuptools>=40.8.0",
+    "setuptools>=45",
+    "setuptools_scm[toml]>=6.2",
     "wheel",
 ]
 build-backend = "setuptools.build_meta"
