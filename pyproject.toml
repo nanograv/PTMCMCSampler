@@ -29,6 +29,7 @@ exclude = '''
 '''
 
 [tool.setuptools_scm]
+write_to = "PTMCMCSampler/version.py"
 
 [build-system]
 requires = [
