@@ -5,8 +5,10 @@ import shutil
 from unittest import TestCase
 
 import numpy as np
+from mpi4py import MPI
 
 from PTMCMCSampler import PTMCMCSampler
+from PTMCMCSampler import nompi4py as MPIDUMMY
 
 
 class GaussianLikelihood(object):
@@ -65,6 +67,9 @@ class TestSimpleSampler(TestCase):
     def tearDownClass(cls):
         shutil.rmtree("chains")
 
+    def setUp(self) -> None:
+        self.comm = MPI.COMM_WORLD
+
     def test_simple(self):
         # ## Setup Gaussian model class
         ndim = 20
@@ -76,10 +81,25 @@ class TestSimpleSampler(TestCase):
         p0 = np.random.uniform(pmin, pmax, ndim)
         cov = np.eye(ndim) * 0.1**2
 
-        sampler = PTMCMCSampler.PTSampler(ndim, glo.lnlikefn, glo.lnpriorfn, np.copy(cov), outDir="./chains")
+        sampler = PTMCMCSampler.PTSampler(
+            ndim,
+            glo.lnlikefn,
+            glo.lnpriorfn,
+            np.copy(cov),
+            outDir="./chains",
+            comm=self.comm,
+        )
 
         # add to jump proposal cycle
         ujump = UniformJump(pmin, pmax)
         sampler.addProposalToCycle(ujump.jump, 5)
 
         sampler.sample(p0, 10000, burn=500, thin=1, covUpdate=500, SCAMweight=20, AMweight=20, DEweight=20)
+
+
+class TestSimpleSamplerNoMPI(TestSimpleSampler):
+    def setUp(self) -> None:
+        self.comm = MPIDUMMY.COMM_WORLD
+
+    def test_simple(self):
+        return super().test_simple()

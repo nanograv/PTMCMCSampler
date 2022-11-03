@@ -101,7 +101,7 @@ class PTSampler(object):
             self.stream = [np.random.default_rng(s) for s in child_seeds]
         else:
             self.stream = None
-        self.stream = comm.scatter(self.stream, root=0)
+        self.stream = self.comm.scatter(self.stream, root=0)
 
         self.ndim = ndim
         self.logl = _function_wrapper(logl, loglargs, loglkwargs)
