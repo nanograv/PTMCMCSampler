@@ -4,8 +4,10 @@ from unittest import TestCase
 import numpy as np
 import scipy.linalg as sl
 import scipy.optimize as so
+from mpi4py import MPI
 
 from PTMCMCSampler import PTMCMCSampler
+from PTMCMCSampler import nompi4py as MPIDUMMY
 
 
 class GaussianLikelihood(object):
@@ -165,6 +167,9 @@ class TestNuts(TestCase):
     def tearDownClass(cls):
         shutil.rmtree("chains")
 
+    def setUp(self) -> None:
+        self.comm = MPI.COMM_WORLD
+
     def test_nuts(self):
         ndim = 40
         glo = GaussianLikelihood(ndim=ndim, pmin=0.0, pmax=10.0)
@@ -196,6 +201,7 @@ class TestNuts(TestCase):
             logl_grad=gl.lnlikefn_grad,
             logp_grad=gl.lnpriorfn_grad,
             outDir="./chains",
+            comm=self.comm,
         )
 
         sampler.sample(
@@ -213,3 +219,8 @@ class TestNuts(TestCase):
             HMCsteps=100,
             HMCstepsize=0.4,
         )
+
+
+class TestNutsNoMPI(TestNuts):
+    def setUp(self) -> None:
+        self.comm = MPIDUMMY.COMM_WORLD
