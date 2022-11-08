@@ -6,7 +6,7 @@
 [![GitHub Workflow Status (event)](https://img.shields.io/github/workflow/status/jellis18/PTMCMCSampler/CI%20targets?label=CI%20Tests)](https://github.com/jellis18/PTMCMCSampler/actions/workflows/ci_test.yml)
 
 [![DOI](https://zenodo.org/badge/32821232.svg)](https://zenodo.org/badge/latestdoi/32821232)
-[![Python Versions](https://img.shields.io/badge/python-3.7%2C%203.8%2C%203.9%2C%203.10-blue.svg)]()
+[![Python Versions](https://img.shields.io/badge/python-3.7%2C%203.8%2C%203.9%2C%203.10%2C%203.11-blue.svg)]()
 [![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/jellis18/PTMCMCSampler/blob/master/LICENSE)
 
 MPI enabled Parallel Tempering MCMC code written in Python.
