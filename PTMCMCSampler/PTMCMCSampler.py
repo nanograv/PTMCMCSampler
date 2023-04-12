@@ -292,15 +292,20 @@ class PTSampler(object):
             try:
                 self.resumechain = np.loadtxt(self.fname)
                 self.resumeLength = self.resumechain.shape[0]
-            except ValueError:
-                print("WARNING: Cant read in file. Removing last line.")
-                os.system("sed -ie '$d' {0}".format(self.fname))
-                self.resumechain = np.loadtxt(self.fname)
-                self.resumeLength = self.resumechain.shape[0]
+            except ValueError as error:
+                print("Reading old chain files failed with error", error)
+                raise Exception("Couldn't read old chain to resume")
+#                print("WARNING: Cant read in file. Removing last line.")
+#                os.system("sed -ie '$d' {0}".format(self.fname))
+#                self.resumechain = np.loadtxt(self.fname)
+#                self.resumeLength = self.resumechain.shape[0]
             self._chainfile = open(self.fname, "a")
         else:
             self._chainfile = open(self.fname, "w")
         self._chainfile.close()
+        if (self.resumeLength % (self.isave/self.thin) != 0):
+            raise Exception("Old chain has {0} rows, which is not a multiple of isave/thin = {1}".format(self.resumeLength, self.isave/self.thin))
+        print("Resuming with", self.resumeLength, "samples from file representing", self.resumeLength*self.thin, "original samples")
 
     def updateChains(self, p0, lnlike0, lnprob0, iter):
         """
@@ -319,7 +324,7 @@ class PTSampler(object):
             self._lnprob[ind] = lnprob0
 
         # write to file
-        if iter % self.isave == 0 and iter > 1 and iter > self.resumeLength:
+        if iter % self.isave == 0 and iter > 1 and iter > self.resumeLength*self.thin:
             if self.writeHotChains or self.MPIrank == 0:
                 self._writeToFile(iter)
 
@@ -541,12 +546,13 @@ class PTSampler(object):
 
         # jump proposal ###
 
-        # if resuming, just use previous chain points
-        if self.resume and self.resumeLength > 0 and iter < self.resumeLength:
-            p0, lnlike0, lnprob0 = self.resumechain[iter, :-4], self.resumechain[iter, -3], self.resumechain[iter, -4]
+        # if resuming, just use previous chain points.  Use each one thin times to compensate for
+        # thinning when they were written out
+        if self.resume and self.resumeLength > 0 and iter < self.resumeLength*self.thin:
+            p0, lnlike0, lnprob0 = self.resumechain[iter//self.thin, :-4], self.resumechain[iter//self.thin, -3], self.resumechain[iter//self.thin, -4]
 
             # update acceptance counter
-            self.naccepted = iter * self.resumechain[iter, -2]
+            self.naccepted = iter * self.resumechain[iter//self.thin, -2]
         else:
             y, qxy, jump_name = self._jump(p0, iter)
             self.jumpDict[jump_name][0] += 1
