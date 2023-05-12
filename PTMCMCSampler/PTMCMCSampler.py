@@ -300,12 +300,12 @@ class PTSampler(object):
 #                self.resumechain = np.loadtxt(self.fname)
 #                self.resumeLength = self.resumechain.shape[0]
             self._chainfile = open(self.fname, "a")
+            if (self.resumeLength % (self.isave/self.thin) != 0):
+                raise Exception("Old chain has {0} rows, which is not a multiple of isave/thin = {1}".format(self.resumeLength, self.isave/self.thin))
+            print("Resuming with", self.resumeLength, "samples from file representing", self.resumeLength*self.thin, "original samples")
         else:
             self._chainfile = open(self.fname, "w")
         self._chainfile.close()
-        if (self.resumeLength % (self.isave/self.thin) != 0):
-            raise Exception("Old chain has {0} rows, which is not a multiple of isave/thin = {1}".format(self.resumeLength, self.isave/self.thin))
-        print("Resuming with", self.resumeLength, "samples from file representing", self.resumeLength*self.thin, "original samples")
 
     def updateChains(self, p0, lnlike0, lnprob0, iter):
         """
