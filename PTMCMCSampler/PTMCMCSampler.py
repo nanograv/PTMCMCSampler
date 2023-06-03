@@ -204,11 +204,12 @@ class PTSampler(object):
         self.neff = neff
         self.tstart = 0
 
-        N = int(maxIter / thin)
+        N = int(maxIter / thin) + 1 # first sample + those we generate
 
         self._lnprob = np.zeros(N)
         self._lnlike = np.zeros(N)
         self._chain = np.zeros((N, self.ndim))
+        self.ind_next_write = 0    # Next index in these arrays to write out
         self.naccepted = 0
         self.swapProposed = 0
         self.nswap_accepted = 0
@@ -291,18 +292,15 @@ class PTSampler(object):
                 print("Resuming run from chain file {0}".format(self.fname))
             try:
                 self.resumechain = np.loadtxt(self.fname)
-                self.resumeLength = self.resumechain.shape[0]
+                self.resumeLength = self.resumechain.shape[0] # Number of samples read from old chain
             except ValueError as error:
                 print("Reading old chain files failed with error", error)
                 raise Exception("Couldn't read old chain to resume")
-#                print("WARNING: Cant read in file. Removing last line.")
-#                os.system("sed -ie '$d' {0}".format(self.fname))
-#                self.resumechain = np.loadtxt(self.fname)
-#                self.resumeLength = self.resumechain.shape[0]
             self._chainfile = open(self.fname, "a")
-            if (self.resumeLength % (self.isave/self.thin) != 0):
-                raise Exception("Old chain has {0} rows, which is not a multiple of isave/thin = {1}".format(self.resumeLength, self.isave/self.thin))
-            print("Resuming with", self.resumeLength, "samples from file representing", self.resumeLength*self.thin, "original samples")
+            if (self.isave != self.thin and # This special case is always OK
+                self.resumeLength % (self.isave/self.thin) != 1): # Initial sample plus blocks of isave/thin
+                raise Exception("Old chain has {0} rows, which is not a multiple of isave/thin = {1}".format(self.resumeLength, self.isave//self.thin))
+            print("Resuming with", self.resumeLength, "samples from file representing", (self.resumeLength-1)*self.thin+1, "original samples")
         else:
             self._chainfile = open(self.fname, "w")
         self._chainfile.close()
@@ -324,17 +322,37 @@ class PTSampler(object):
             self._lnprob[ind] = lnprob0
 
         # write to file
-        if iter % self.isave == 0 and iter > 1 and iter > self.resumeLength*self.thin:
+        if iter % self.isave == 0:
+            self.writeOutput(iter)
+
+    def writeOutput(self, iter):
+        """
+        Write chains and covariance matrix.  Called every isave on samples or at end.
+        """
+        if iter // self.thin >= self.ind_next_write:
+
             if self.writeHotChains or self.MPIrank == 0:
                 self._writeToFile(iter)
 
             # write output covariance matrix
-            np.save(self.outDir + "/cov.npy", self.cov)
-            if self.MPIrank == 0 and self.verbose and iter > 1:
-                sys.stdout.write("\r")
-                sys.stdout.write(
-                    "Finished %2.2f percent in %f s Acceptance rate = %g"
-                    % (iter / self.Niter * 100, time.time() - self.tstart, self.naccepted / iter)
+            if iter > 0:
+                np.save(self.outDir + "/cov.npy", self.cov)
+
+            if self.MPIrank == 0 and self.verbose:
+                if iter > 0: sys.stdout.write("\r")
+                percent = iter / self.Niter * 100 # Percent of total work finished
+                acceptance = self.naccepted / iter if iter > 0 else 0
+                elapsed = time.time() - self.tstart
+                if self.resume:
+                    # Percentage of new work done
+                    percentnew = ((iter - self.resumeLength*self.thin)
+                                  / (self.Niter - self.resumeLength*self.thin) * 100)
+                    sys.stdout.write(
+                        "Finished %2.2f percent (%2.2f percent of new work) in %f s Acceptance rate = %g"
+                        % (percent, percentnew, elapsed, acceptance))
+                else:
+                    sys.stdout.write("Finished %2.2f percent in %f s Acceptance rate = %g"
+                                     % (percent, elapsed, acceptance)
                 )
                 sys.stdout.flush()
 
@@ -373,7 +391,7 @@ class PTSampler(object):
         @param Tmin: Minimum temperature in ladder (default=1)
         @param Tmax: Maximum temperature in ladder (default=None)
         @param Tskip: Number of steps between proposed temperature swaps (default=100)
-        @param isave: Number of iterations before writing to file (default=1000)
+        @param isave: Write to file every isave samples (default=1000)
         @param covUpdate: Number of iterations between AM covariance updates (default=1000)
         @param SCAMweight: Weight of SCAM jumps in overall jump cycle (default=20)
         @param AMweight: Weight of AM jumps in overall jump cycle (default=20)
@@ -386,7 +404,7 @@ class PTSampler(object):
         @param burn: Burn in time (DE jumps added after this iteration) (default=10000)
         @param maxIter: Maximum number of iterations for high temperature chains
                         (default=2*self.Niter)
-        @param self.thin: Save every self.thin MCMC samples
+        @param self.thin: MCMC Samples are recorded every self.thin samples
         @param i0: Iteration to start MCMC (if i0 !=0, do not re-initialize)
         @param neff: Number of effective samples to collect before terminating
 
@@ -397,6 +415,13 @@ class PTSampler(object):
             maxIter = Niter
         elif maxIter is None and self.MPIrank == 0:
             maxIter = Niter
+
+        if (isave % thin != 0):
+            raise ValueError("isave = %d is not a multiple of thin =  %d" % (isave, thin))
+
+        if (Niter % thin != 0):
+            print("Niter = %d is not a multiple of thin = %d.  The last %d samples will be lost"
+                  % (Niter, thin, Niter % thin))
 
         # set up arrays to store lnprob, lnlike and chain
         # if picking up from previous run, don't re-initialize
@@ -431,6 +456,7 @@ class PTSampler(object):
         # if resuming, just start with first point in chain
         if self.resume and self.resumeLength > 0:
             p0, lnlike0, lnprob0 = self.resumechain[0, :-4], self.resumechain[0, -3], self.resumechain[0, -4]
+            self.ind_next_write = self.resumeLength
         else:
             # compute prior
             lp = self.logp(p0)
@@ -452,6 +478,7 @@ class PTSampler(object):
 
         # start iterations
         iter = i0
+        
         self.tstart = time.time()
         runComplete = False
         Neff = 0
@@ -474,13 +501,15 @@ class PTSampler(object):
                     pass
 
             # stop if reached maximum number of iterations
-            if self.MPIrank == 0 and iter >= self.Niter - 1:
+            if self.MPIrank == 0 and iter >= self.Niter:
+                self.writeOutput(iter) # Possibly write partial block
                 if self.verbose:
                     print("\nRun Complete")
                 runComplete = True
 
             # stop if reached effective number of samples
             if self.MPIrank == 0 and int(Neff) > self.neff:
+                self.writeOutput(iter) # Possibly write partial block
                 if self.verbose:
                     print("\nRun Complete with {0} effective samples".format(int(Neff)))
                 runComplete = True
@@ -670,26 +699,30 @@ class PTSampler(object):
 
     def _writeToFile(self, iter):
         """
-        Function to write chain file. File has 3+ndim columns,
-        the first is log-posterior (unweighted), log-likelihood,
-        and acceptance probability, followed by parameter values.
+        Function to write chain file. File has ndim+4 columns,
+        appended to the parameter values are log-posterior (unnormalized),
+        log-likelihood, acceptance rate, and PT acceptance rate.
+        Rates are as of time of writing.
 
         @param iter: Iteration of sampler
 
         """
 
         self._chainfile = open(self.fname, "a+")
-        for jj in range((iter - self.isave), iter, self.thin):
-            ind = int(jj / self.thin)
+        # index 0 is the initial element.  So after 10*thin iterations we need to write elements 1..10
+        write_end = iter // self.thin + 1 # First element not to write.
+        for ind in range(self.ind_next_write, write_end):
             pt_acc = 1
             if self.MPIrank < self.nchain - 1 and self.swapProposed != 0:
                 pt_acc = self.nswap_accepted / self.swapProposed
 
             self._chainfile.write("\t".join(["%22.22f" % (self._chain[ind, kk]) for kk in range(self.ndim)]))
             self._chainfile.write(
-                "\t%f\t%f\t%f\t%f\n" % (self._lnprob[ind], self._lnlike[ind], self.naccepted / iter, pt_acc)
+                "\t%f\t%f\t%f\t%f\n" % (self._lnprob[ind], self._lnlike[ind], 
+                                        self.naccepted / iter if iter > 0 else 0, pt_acc)
             )
         self._chainfile.close()
+        self.ind_next_write = write_end # Ready for next write
 
         # write jump statistics files ####
 
