@@ -299,7 +299,7 @@ class PTSampler(object):
             self._chainfile = open(self.fname, "a")
             if (self.isave != self.thin and # This special case is always OK
                 self.resumeLength % (self.isave/self.thin) != 1): # Initial sample plus blocks of isave/thin
-                raise Exception("Old chain has {0} rows, which is not a multiple of isave/thin = {1}".format(self.resumeLength, self.isave//self.thin))
+                raise Exception("Old chain has {0} rows, which is not the initial sample plus a multiple of isave/thin = {1}".format(self.resumeLength, self.isave//self.thin))
             print("Resuming with", self.resumeLength, "samples from file representing", (self.resumeLength-1)*self.thin+1, "original samples")
         else:
             self._chainfile = open(self.fname, "w")
@@ -488,7 +488,7 @@ class PTSampler(object):
             # call PTMCMCOneStep
             p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
 
-            # compute effective number of samples
+            # compute effective number of samples in cold chain
             if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
                 try:
                     Neff = iter / max(
@@ -500,21 +500,21 @@ class PTSampler(object):
                     Neff = 0
                     pass
 
-            # stop if reached maximum number of iterations
-            if self.MPIrank == 0 and iter >= self.Niter:
-                self.writeOutput(iter) # Possibly write partial block
-                if self.verbose:
-                    print("\nRun Complete")
-                runComplete = True
+            # rank 0 decides whether to stop
+            if self.MPIrank == 0:
+                if iter >= self.Niter: # stop if reached maximum number of iterations
+                    message = "\nRun Complete"
+                    runComplete = True
+                elif int(Neff) > self.neff: # stop if reached maximum number of iterations
+                    message = "\nRun Complete with {0} effective samples".format(int(Neff))
+                    runComplete = True
 
-            # stop if reached effective number of samples
-            if self.MPIrank == 0 and int(Neff) > self.neff:
-                self.writeOutput(iter) # Possibly write partial block
-                if self.verbose:
-                    print("\nRun Complete with {0} effective samples".format(int(Neff)))
-                runComplete = True
+            runComplete = self.comm.bcast(runComplete, root=0) # rank 0 tells others whether to stop
 
-            runComplete = self.comm.bcast(runComplete, root=0)
+            if runComplete:
+                self.writeOutput(iter) # Possibly write partial block
+                if self.MPIrank == 0 and self.verbose:
+                    print(message)
 
     def PTMCMCOneStep(self, p0, lnlike0, lnprob0, iter):
         """
