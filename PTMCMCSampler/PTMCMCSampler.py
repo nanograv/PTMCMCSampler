@@ -472,6 +472,7 @@ class PTSampler(object):
                 lnprob0 = 1 / self.temp * lnlike0 + lp
 
         # record first values
+        self.tstart = time.time()
         self.updateChains(p0, lnlike0, lnprob0, i0)
 
         self.comm.barrier()
@@ -479,7 +480,6 @@ class PTSampler(object):
         # start iterations
         iter = i0
         
-        self.tstart = time.time()
         runComplete = False
         Neff = 0
         while runComplete is False:
