@@ -15,7 +15,7 @@ setup(
     long_description_content_type="text/markdown",
     package_data={"": ["README.md", "HISTORY.md"]},
     install_requires=["numpy>=1.16.3", "scipy>=1.2.0"],
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     extras_require={"mpi": ["mpi4py>=3.0.3"]},
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -24,7 +24,6 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
