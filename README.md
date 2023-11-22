@@ -1,17 +1,19 @@
 # PTMCMCSampler
 
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/jellis18/PTMCMCSampler)](https://github.com/jellis18/PTMCMCSampler/releases/latest)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/nanograv/PTMCMCSampler)](https://github.com/nanograv/PTMCMCSampler/releases/latest)
 [![PyPI](https://img.shields.io/pypi/v/ptmcmcsampler)](https://pypi.org/project/ptmcmcsampler/)
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/ptmcmcsampler.svg)](https://anaconda.org/conda-forge/ptmcmcsampler)
-[![GitHub Workflow Status (event)](https://img.shields.io/github/workflow/status/jellis18/PTMCMCSampler/CI%20targets?label=CI%20Tests)](https://github.com/jellis18/PTMCMCSampler/actions/workflows/ci_test.yml)
+[![GitHub Workflow Status (event)](https://img.shields.io/github/workflow/status/nanograv/PTMCMCSampler/CI%20targets?label=CI%20Tests)](https://github.com/nanograv/PTMCMCSampler/actions/workflows/ci_test.yml)
 
 [![DOI](https://zenodo.org/badge/32821232.svg)](https://zenodo.org/badge/latestdoi/32821232)
 [![Python Versions](https://img.shields.io/badge/python-3.8%2C%203.9%2C%203.10%2C%203.11-blue.svg)]()
-[![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/jellis18/PTMCMCSampler/blob/master/LICENSE)
+[![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/nanograv/PTMCMCSampler/blob/master/LICENSE)
+
+**NOTE: This project was moved under the [NANOGrav][https://github.com/nanograv] github organization in November 2023**
 
 MPI enabled Parallel Tempering MCMC code written in Python.
 
-See the [examples](https://github.com/jellis18/PTMCMCSampler/tree/master/examples) for some simple use cases.
+See the [examples](https://github.com/nanograv/PTMCMCSampler/tree/master/examples) for some simple use cases.
 
 For MPI support you will need A functional MPI 1.x/2.x/3.x implementation like:
 

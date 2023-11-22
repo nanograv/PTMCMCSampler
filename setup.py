@@ -2,11 +2,12 @@ from setuptools import setup
 
 setup(
     name="ptmcmcsampler",
-    author="Justin A. Ellis",
-    author_email="justin.ellis18@gmail.com",
+    author="Justin A. Ellis, Rutger van Haasteren",
+    author_email="rutger@vhaasteren.com",
+    maintainer="Aaron D. Johnson, Paul T. Baker, Ken D. Olum",
     packages=["PTMCMCSampler"],
     package_dir={"PTMCMCSampler": "PTMCMCSampler"},
-    url="https://github.com/jellis18/PTMCMCSampler",
+    url="https://github.com/nanograv/PTMCMCSampler",
     license="MIT",
     zip_safe=False,
     description="Parallel tempering MCMC sampler written in Python",
