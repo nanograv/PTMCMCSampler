@@ -655,7 +655,7 @@ class PTSampler(object):
         @return p0: new parameter vector
         @return lnlike0: new log-likelihood
         @return lnprob0: new log posterior value
-        
+
         """
         Ts = self.ladder
 
