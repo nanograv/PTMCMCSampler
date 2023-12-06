@@ -634,6 +634,15 @@ class PTSampler(object):
         """
         Do parallel tempering swap.
 
+        (Repurposed from Neil Cornish/Bence Becsy's code)
+
+        Swap acceptance rates are computed per chain by storing
+        the number of swaps proposed and accepted. Since swaps
+        are proposed for every chain, swapProposed is always
+        incremented and nswap_accepted will be incremented only
+        for chains that have the swap accepted. The swap acceptance
+        is calculated elsewhere.
+
         @param p0: current parameter vector
         @param lnlike0: current log-likelihood
         @param lnprob0: current log posterior value
@@ -646,8 +655,7 @@ class PTSampler(object):
         @return p0: new parameter vector
         @return lnlike0: new log-likelihood
         @return lnprob0: new log posterior value
-
-        Repurposed from Neil Cornish/Bence Becsy's code:
+        
         """
         Ts = self.ladder
 
