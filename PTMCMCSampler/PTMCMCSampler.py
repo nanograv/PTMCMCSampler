@@ -634,6 +634,15 @@ class PTSampler(object):
         """
         Do parallel tempering swap.
 
+        (Repurposed from Neil Cornish/Bence Becsy's code)
+
+        Swap acceptance rates are computed per chain by storing
+        the number of swaps proposed and accepted. Since swaps
+        are proposed for every chain, swapProposed is always
+        incremented and nswap_accepted will be incremented only
+        for chains that have the swap accepted. The swap acceptance
+        is calculated elsewhere.
+
         @param p0: current parameter vector
         @param lnlike0: current log-likelihood
         @param lnprob0: current log posterior value
@@ -647,12 +656,12 @@ class PTSampler(object):
         @return lnlike0: new log-likelihood
         @return lnprob0: new log posterior value
 
-        Repurposed from Neil Cornish/Bence Becsy's code:
         """
         Ts = self.ladder
 
         log_Ls = self.comm.gather(lnlike0, root=0)  # list of likelihoods from each chain
         p0s = self.comm.gather(p0, root=0)  # list of parameter arrays from each chain
+        swap_accepted = np.zeros(self.nchain)
 
         if self.MPIrank == 0:
             # set up map to help keep track of swaps
@@ -669,10 +678,7 @@ class PTSampler(object):
                 acc_ratio = np.exp(log_acc_ratio)
                 if self.stream.uniform() <= acc_ratio:
                     swap_map[swap_chain], swap_map[swap_chain + 1] = swap_map[swap_chain + 1], swap_map[swap_chain]
-                    self.nswap_accepted += 1
-                    self.swapProposed += 1
-                else:
-                    self.swapProposed += 1
+                    swap_accepted[swap_chain] += 1
 
             # loop through the chains and record the new samples and log_Ls
             for j in range(self.nchain):
@@ -682,6 +688,8 @@ class PTSampler(object):
         # broadcast the new samples and log_Ls to all chains
         p0 = self.comm.scatter(p0s, root=0)
         lnlike0 = self.comm.scatter(log_Ls, root=0)
+        self.nswap_accepted += self.comm.scatter(swap_accepted, root=0)
+        self.swapProposed += 1
 
         # calculate new posterior values
         lnprob0 = 1 / self.temp * lnlike0 + self.logp(p0)
