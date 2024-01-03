@@ -15,10 +15,12 @@ except ImportError:
 try:
     import acor
 except ImportError:
-    print(
-        "Optional acor package is not installed. Acor is optionally used to calculate the "
-        "effective chain length for output in the chain file."
-    )
+    # Don't complain if not available.  If you set neff, you'll get an error.  Otherwise
+    # it doesn't matter.
+    #    print(
+    #        "Optional acor package is not installed. Acor is optionally used to calculate the "
+    #        "effective chain length for output in the chain file."
+    #    )
     pass
 
 
@@ -173,7 +175,7 @@ class PTSampler(object):
         maxIter=None,
         thin=10,
         i0=0,
-        neff=100000,
+        neff=None,
         writeHotChains=False,
         hotChain=False,
     ):
@@ -391,7 +393,7 @@ class PTSampler(object):
         maxIter=None,
         thin=10,
         i0=0,
-        neff=100000,
+        neff=None,
         writeHotChains=False,
         hotChain=False,
     ):
@@ -494,33 +496,29 @@ class PTSampler(object):
         iter = i0
 
         runComplete = False
-        Neff = 0
         while runComplete is False:
             iter += 1
             self.comm.barrier()  # make sure all processes are at the same iteration
             # call PTMCMCOneStep
             p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
 
-            # compute effective number of samples in cold chain
-            if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
-                try:
-                    Neff = iter / max(
-                        1,
-                        np.nanmax([acor.acor(self._chain[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]),
-                    )
-                    # print('\n {0} effective samples'.format(Neff))
-                except NameError:
-                    Neff = 0
-                    pass
-
             # rank 0 decides whether to stop
             if self.MPIrank == 0:
                 if iter >= self.Niter:  # stop if reached maximum number of iterations
                     message = "\nRun Complete"
                     runComplete = True
-                elif int(Neff) > self.neff:  # stop if reached maximum number of iterations
-                    message = "\nRun Complete with {0} effective samples".format(int(Neff))
-                    runComplete = True
+                elif self.neff:  # Stop if effective number of samples reached if requested
+                    if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
+                        Neff = iter / max(
+                            1,
+                            np.nanmax(
+                                [acor.acor(self._chain[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
+                            ),
+                        )
+                        # print('\n {0} effective samples'.format(Neff))
+                        if int(Neff) >= self.neff:
+                            message = "\nRun Complete with {0} effective samples".format(int(Neff))
+                            runComplete = True
 
             runComplete = self.comm.bcast(runComplete, root=0)  # rank 0 tells others whether to stop
 
