@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import warnings
 
 import numpy as np
 
@@ -176,7 +177,7 @@ class PTSampler(object):
         thin=10,
         i0=0,
         neff=None,
-        writeHotChains=True,
+        writeHotChains=False,
         hotChain=False,
     ):
         """
@@ -297,16 +298,26 @@ class PTSampler(object):
             except ValueError as error:
                 print("Reading old chain files failed with error", error)
                 raise Exception("Couldn't read old chain to resume")
-            self._chainfile = open(self.fname, "a")
+                
             if (
                 self.isave != self.thin
                 and self.resumeLength % (self.isave / self.thin) != 1  # This special case is always OK
             ):  # Initial sample plus blocks of isave/thin
-                raise Exception(
-                    (
-                        "Old chain has {0} rows, which is not the initial sample plus a multiple of isave/thin = {1}"
-                    ).format(self.resumeLength, self.isave // self.thin)
-                )
+                if self.MPIrank == 0 or (self.MPIrank != 0 and self.writeHotChains is True):
+                    raise Exception(
+                        (
+                            "Old chain has {0} rows, which is not the initial sample plus a multiple of isave/thin = {1}"
+                        ).format(self.resumeLength, self.isave // self.thin)
+                    )
+                else:
+                    warnings.warn("Neglecting hot chains from the previous run. It is recommended to set writeHotChains=True when resuming a run with multiple temperatures.")
+                    self._chainfile = open(self.fname, "w")
+            else:
+                self._chainfile = open(self.fname, "a")
+                        
+            elif self.MPIrank != 0 and self.writeHotChains is False:
+                warnings.warn("Neglecting hot chains from the previous run. Please set writeHotChains=True when resuming a run with multiple temperatures.")
+                self._chainfile = open(self.fname, "w")
             print(
                 "Resuming with",
                 self.resumeLength,
