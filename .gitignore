@@ -5,3 +5,8 @@ dist
 *.pyc
 *.txt
 *.h5
+*.egg-info
+.vscode
+venv
+.DS_Store
+**/version.py

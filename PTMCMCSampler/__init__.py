@@ -1,9 +1,5 @@
-from __future__ import print_function, division, absolute_import
+from PTMCMCSampler import PTMCMCSampler  # noqa: F401
 
-__version__ = 2015.02
+from .version import version
 
-from PTMCMCSampler import *
-
-def test():
-    # Run some tests here
-    print("{0} tests have passed".format(0))
+__version__ = version

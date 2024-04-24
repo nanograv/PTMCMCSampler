@@ -21,6 +21,17 @@ class MPIDummy(object):
     def Iprobe(self, source=1, tag=55):
         pass
 
+    def scatter(self, sendobj, **kwargs):
+        if sendobj is not None:
+            return sendobj[0]
+        return None
+
+    def bcast(self, obj, **kwargs):
+        return obj
+
+    def gather(self, sendobj, **kwargs):
+        return [sendobj]
+
 
 # Global object representing no MPI:
 COMM_WORLD = MPIDummy()

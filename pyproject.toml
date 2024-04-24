@@ -1,0 +1,40 @@
+[tool.isort]
+include_trailing_comma = true
+indent = '    '
+dedup_headings = true
+line_length = 120
+multi_line_output = 3
+
+[tool.black]
+line-length = 120
+target_version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+exclude = '''
+
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | _build
+    | build
+    | dist
+    | docs
+    | venv
+    | examples
+  )/
+)
+'''
+
+[tool.setuptools_scm]
+write_to = "PTMCMCSampler/version.py"
+
+[build-system]
+requires = [
+    "setuptools>=45",
+    "setuptools_scm[toml]>=6.2",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
