@@ -176,7 +176,7 @@ class PTSampler(object):
         thin=10,
         i0=0,
         neff=None,
-        writeHotChains=False,
+        writeHotChains=True,
         hotChain=False,
     ):
         """
