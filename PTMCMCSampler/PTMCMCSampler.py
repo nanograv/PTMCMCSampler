@@ -314,10 +314,7 @@ class PTSampler(object):
                     self._chainfile = open(self.fname, "w")
             else:
                 self._chainfile = open(self.fname, "a")
-                        
-            elif self.MPIrank != 0 and self.writeHotChains is False:
-                warnings.warn("Neglecting hot chains from the previous run. Please set writeHotChains=True when resuming a run with multiple temperatures.")
-                self._chainfile = open(self.fname, "w")
+
             print(
                 "Resuming with",
                 self.resumeLength,
