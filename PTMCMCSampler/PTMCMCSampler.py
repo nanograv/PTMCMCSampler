@@ -303,15 +303,15 @@ class PTSampler(object):
                 self.isave != self.thin
                 and self.resumeLength % (self.isave / self.thin) != 1  # This special case is always OK
             ):  # Initial sample plus blocks of isave/thin
-                if self.MPIrank == 0 or (self.MPIrank != 0 and self.writeHotChains is True):
+                if self.MPIrank != 0 and self.writeHotChains is False:
+                    warnings.warn("Neglecting hot chains from the previous run. It is recommended to set writeHotChains=True when resuming a run with multiple temperatures.")
+                    self._chainfile = open(self.fname, "w")
+                else:
                     raise Exception(
                         (
                             "Old chain has {0} rows, which is not the initial sample plus a multiple of isave/thin = {1}"
                         ).format(self.resumeLength, self.isave // self.thin)
                     )
-                else:
-                    warnings.warn("Neglecting hot chains from the previous run. It is recommended to set writeHotChains=True when resuming a run with multiple temperatures.")
-                    self._chainfile = open(self.fname, "w")
             else:
                 self._chainfile = open(self.fname, "a")
 
