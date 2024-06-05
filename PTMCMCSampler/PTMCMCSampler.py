@@ -292,7 +292,7 @@ class PTSampler(object):
             if self.verbose:
                 print("Resuming run from chain file {0}".format(self.fname))
             try:
-                self.resumechain = np.loadtxt(self.fname)
+                self.resumechain = np.loadtxt(self.fname, ndmin=2)
                 self.resumeLength = self.resumechain.shape[0]  # Number of samples read from old chain
             except ValueError as error:
                 print("Reading old chain files failed with error", error)
