@@ -70,6 +70,8 @@ class PTSampler(object):
     @param outDir: Full path to output directory for chain files (default = ./chains)
     @param verbose: Update current run-status to the screen (default=True)
     @param resume: Resume from a previous chain (still in testing so beware) (default=False)
+    @param ihcwr: Ignore hot chains when resuming. Note, hot chains will enter a burn-in 
+    phase when resuming (default=False)
 
     """
 
@@ -90,6 +92,7 @@ class PTSampler(object):
         outDir="./chains",
         verbose=True,
         resume=False,
+        ihcwr=False,
         seed=None,
     ):
         # MPI initialization
@@ -118,6 +121,7 @@ class PTSampler(object):
         self.outDir = outDir
         self.verbose = verbose
         self.resume = resume
+        self.ignoreHotChainsWhenResuming = ihcwr
 
         # setup output file
         if not os.path.exists(self.outDir):
@@ -303,7 +307,7 @@ class PTSampler(object):
                 self.isave != self.thin
                 and self.resumeLength % (self.isave / self.thin) != 1  # This special case is always OK
             ):  # Initial sample plus blocks of isave/thin
-                if self.MPIrank != 0 and self.writeHotChains is False:
+                if self.MPIrank != 0 and self.writeHotChains is False and self.ignoreHotChainsWhenResuming:
                     warnings.warn("Neglecting hot chains from the previous run. It is recommended to set writeHotChains=True when resuming a run with multiple temperatures.")
                     self._chainfile = open(self.fname, "w")
                 else:
