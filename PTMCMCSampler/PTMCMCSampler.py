@@ -231,7 +231,6 @@ class PTSampler(object):
 
 
         """
-        #breakpoint()
         # get maximum number of iteration
         if maxIter is None and self.MPIrank > 0:
             maxIter = Niter
@@ -332,13 +331,7 @@ class PTSampler(object):
             raise ValueError("No jump proposals specified!")
 
         # randomize cycle
-        self.randomizeProposalCycle()
-
-        # Hot chains required for MSTI         
-        # if self.n_metaparams == 8:
-        #     #hotChain=True
-        #     #writeHotChains=True
-        #     shape = 'linear'  
+        self.randomizeProposalCycle() 
             
         # if ladder given check if in temp or beta
         if self.ladder:
@@ -748,7 +741,6 @@ class PTSampler(object):
             # update acceptance counter
             self.naccepted = iter * self.resumechain[iter//self.thin, -2]
         else:
-            #breakpoint()
             y, qxy, jump_name = self._jump(p0, iter) # made a jump
             self.jumpDict[jump_name][0] += 1
 
@@ -884,8 +876,7 @@ class PTSampler(object):
         """
         Method to compute temperature/beta ladder. The default is a geometrically 
         spaced ladder with a spacing designed to give 25 % temperature/beta swap 
-        acceptance rate. The other option is a linear spacing, use specifically in 
-        MSTI.
+        acceptance rate. The other option is a linear spacing.
     
         """
 
@@ -988,7 +979,6 @@ class PTSampler(object):
         @param mem: Number of steps between updates
 
         """
-        #breakpoint()
         it = iter - mem
         ndim = self.ndim
 
@@ -1032,7 +1022,7 @@ class PTSampler(object):
         self._DEbuffer[-len(self._AMbuffer) :] = self._AMbuffer  # add new samples to the new empty spaces
 
     # SCAM jump
-    def covarianceJumpProposalSCAM(self, x, iter, beta):   #maybe include a TI argument to avoid temp scaling??
+    def covarianceJumpProposalSCAM(self, x, iter, beta): 
         """
         Single Component Adaptive Jump Proposal. This function will occasionally
         jump in more than 1 parameter. It will also occasionally use different
@@ -1092,7 +1082,7 @@ class PTSampler(object):
         return q, qxy
 
     # AM jump
-    def covarianceJumpProposalAM(self, x, iter, beta):  #maybe include a TI argument to avoid temp scaling??
+    def covarianceJumpProposalAM(self, x, iter, beta):  
         """
         Adaptive Jump Proposal. This function will occasionally
         use different jump sizes to ensure proper mixing.
@@ -1149,7 +1139,7 @@ class PTSampler(object):
         return q, qxy
 
     # Differential evolution jump
-    def DEJump(self, x, iter, beta):    #maybe include a TI argument to avoid temp scaling??
+    def DEJump(self, x, iter, beta):  
         """
         Differential Evolution Jump. This function will  occasionally
         use different jump sizes to ensure proper mixing.
@@ -1184,11 +1174,11 @@ class PTSampler(object):
         # get jump scale size
         prob = self.stream.random()
 
-        # mode jump     #maybe include a TI argument to avoid temp scaling??
+        # mode jump    
         # if prob > 0.5:
         #     scale = 1.0
 
-        # else:     #maybe include a TI argument to avoid temp scaling??
+        # else:   
         #     scale = self.stream.random() * 2.4 / np.sqrt(2 * ndim) * np.sqrt(1 / self.beta)
 
         scale = 1.0
