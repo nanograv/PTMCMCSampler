@@ -91,7 +91,7 @@ class PTSampler(object):
         outDir="./chains",
         verbose=True,
         resume=False,
-        seed=None ### This was set to NONE, causing reproducability issue when initializing????
+        seed=None
     ):
         # MPI initialization
         self.comm = comm
@@ -198,14 +198,37 @@ class PTSampler(object):
     ):
         """
         Initialize MCMC quantities
+        @param p0: Initial parameter vector
+        @param self.Niter: Number of iterations to use for T = 1 chain
+        @param Bmax: Maximum beta in ladder (default=1)
+        @param Bmin: Minimum beta in ladder (default=None)
+        @param ladder: User defined temperature/beta ladder. Either scheme accepted.
+        @param shape: Specifies shape of beta/temperature ladder if a ladder is not already given (default='geometric') 
+        @param Tmin: Minimum temperature in ladder (default=None)
+        @param Tmax: Maximum temperature in ladder (default=None)
+        @param Tskip: Number of steps between proposed temperature swaps (default=100)
+        @param isave: Write to file every isave samples (default=1000)
+        @param covUpdate: Number of iterations between AM covariance updates (default=1000)
+        @param SCAMweight: Weight of SCAM jumps in overall jump cycle (default=20)
+        @param AMweight: Weight of AM jumps in overall jump cycle (default=20)
+        @param DEweight: Weight of DE jumps in overall jump cycle (default=20)
+        @param NUTSweight: Weight of the NUTS jumps in jump cycle (default=20)
+        @param MALAweight: Weight of the MALA jumps in jump cycle (default=20)
+        @param HMCweight: Weight of the HMC jumps in jump cycle (default=20)
+        @param HMCstepsize: Step-size of the HMC jumps (default=0.1)
+        @param HMCsteps: Maximum number of steps in an HMC trajectory (default=300)
+        @param burn: Burn in time (DE jumps added after this iteration) (default=10000)
+        @param maxIter: Maximum number of iterations for high temperature chains
+                        (default=2*self.Niter)
+        @param self.thin: MCMC Samples are recorded every self.thin samples
+        @param i0: Iteration to start MCMC (if i0 !=0, do not re-initialize)
+        @param neff: Number of effective samples to collect before terminating
+        @param writeHotChains:
+        @param hotChain:
+        @param model_param_idx: A tuple of lists of indices for each model’s parameters in MSTI, 
+                        used to sift through the combined set of parameters in p0. (default=None) 
+        @param nameChainTemps: Reverts to temperature naming convention of chains (default=False)
 
-        @param maxIter: maximum number of iterations
-        @Bmax:
-        @Bmin:
-        @Tmin: minumum temperature to use in temperature ladder
-        @shape: 
-        @nameChainTemps:
-        @model_param_idx:
 
         """
         #breakpoint()
@@ -315,7 +338,7 @@ class PTSampler(object):
         # if self.n_metaparams == 8:
         #     #hotChain=True
         #     #writeHotChains=True
-        #     shape = 'linear'  #############################################should this be a self.shape?
+        #     shape = 'linear'  
             
         # if ladder given check if in temp or beta
         if self.ladder:
@@ -470,6 +493,7 @@ class PTSampler(object):
         @param self.Niter: Number of iterations to use for T = 1 chain
         @param Bmax: Maximum beta in ladder (default=1)
         @param Bmin: Minimum beta in ladder (default=None)
+        @param shape: Specifies shape of beta/temperature ladder if a ladder is not already given (default='geometric') 
         @param ladder: User defined temperature/beta ladder. Either scheme accepted
         @param Tmin: Minimum temperature in ladder (default=None)
         @param Tmax: Maximum temperature in ladder (default=None)
@@ -494,6 +518,7 @@ class PTSampler(object):
         @param hotChain:
         @param model_param_idx: A tuple of lists of indices for each model’s parameters in MSTI, 
                         used to sift through the combined set of parameters in p0. (default=None) 
+        @param nameChainTemps: Reverts to temperature naming convention of chains (default=False)
 
         """
 
