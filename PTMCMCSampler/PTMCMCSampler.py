@@ -622,10 +622,6 @@ class PTSampler(object):
                 
             else:
                 raise ValueError("Unclear how many meta-parameters there should be.")
- 
-
-        # # record first values
-        # self.updateChains(p0, lnlike0, lnprob0, i0)
 
         self.comm.barrier()
 
@@ -813,7 +809,16 @@ class PTSampler(object):
     def PTswap(self, p0, lnlike0, lnprob0, iter):
         """
         Do parallel tempering swap. This feature is not compatible with MSTI
-
+        
+        (Repurposed from Neil Cornish/Bence Becsy's code)
+        
+        Swap acceptance rates are computed per chain by storing
+        the number of swaps proposed and accepted. Since swaps
+        are proposed for every chain, swapProposed is always
+        incremented and nswap_accepted will be incremented only
+        for chains that have the swap accepted. The swap acceptance
+        is calculated elsewhere.
+        
         @param p0: current parameter vector
         @param lnlike0: current log-likelihood
         @param lnprob0: current log posterior value
@@ -827,7 +832,6 @@ class PTSampler(object):
         @return lnlike0: new log-likelihood
         @return lnprob0: new log posterior value
 
-        Repurposed from Neil Cornish/Bence Becsy's code:
         """
         Ts = self.ladder # as beta
 
