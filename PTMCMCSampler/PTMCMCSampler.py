@@ -54,8 +54,10 @@ class PTSampler(object):
     jump proposals with the ``addProposalToCycle`` fuction.
 
     @param ndim: number of dimensions in problem
-    @param logl: single log-likelihood function or tuple of log-likelihood functions if using MSTI
-    @param logp: single log prior function (must be normalized for evidence evaluation) or tuple of log prior functions if using MSTI
+    @param logl: single log-likelihood function or tuple of log-likelihood functions if 
+    using MSTI
+    @param logp: single log prior function (must be normalized for evidence evaluation) or 
+    tuple of log prior functions if using MSTI
     @param cov: Initial covariance matrix of model parameters for jump proposals
     @param covinds: Indices of parameters for which to perform adaptive jumps
     @param loglargs: any additional arguments (apart from the parameter vector) for
@@ -107,14 +109,18 @@ class PTSampler(object):
         self.stream = self.comm.scatter(self.stream, root=0)
 
         self.ndim = ndim
-        
-        if (type(logl) is tuple) and (type(logp) is tuple): # if 2 loglikelihood functions and 2 log prior functions are supplied (MSTI)
+
+        # if 2 loglikelihood functions and 2 log prior functions are supplied (MSTI)
+        if (type(logl) is tuple) and (type(logp) is tuple): 
             self.logl1 = _function_wrapper(logl[1], loglargs, loglkwargs)  # model
             self.logl2 = _function_wrapper(logl[0], loglargs, loglkwargs)  # smbhb
             self.logp1 = _function_wrapper(logp[1], logpargs, logpkwargs)  # model
             self.logp2 = _function_wrapper(logp[0], logpargs, logpkwargs)  # smbhb
         elif (type(logl) is tuple) or (type(logp) is tuple): 
-            raise ValueError("You provided a tuple for either the loglikelihood or log prior but not the other. If you are using MSTI make sure both are tuples.")
+            raise ValueError(
+                "You provided a tuple for either the loglikelihood or log prior but not the other."
+                "If you are using MSTI make sure both are tuples."
+            )
         else:  # only 1 loglikelihood and 1 log prior provided
             self.logl = _function_wrapper(logl, loglargs, loglkwargs)
             self.logp = _function_wrapper(logp, logpargs, logpkwargs)
@@ -203,7 +209,8 @@ class PTSampler(object):
         @param Bmax: Maximum beta in ladder (default=1)
         @param Bmin: Minimum beta in ladder (default=None)
         @param ladder: User defined temperature/beta ladder. Either scheme accepted.
-        @param shape: Specifies shape of beta/temperature ladder if a ladder is not already given (default='geometric') 
+        @param shape: Specifies shape of beta/temperature ladder if a ladder is not already given
+        (default='geometric')
         @param Tmin: Minimum temperature in ladder (default=None)
         @param Tmax: Maximum temperature in ladder (default=None)
         @param Tskip: Number of steps between proposed temperature swaps (default=100)
@@ -263,13 +270,21 @@ class PTSampler(object):
         self.n_metaparams = 4
         self.model_param_idx = model_param_idx
         
-        if self.model_param_idx == None:
+        if self.model_param_idx is None:
             if hasattr(self, 'logl1'):
-                raise ValueError("You have provided a likelihood and a prior function for each model but have not provided seperate parameter indices for the two models. For MSTI you must supply parameter indices for each model.")
+                raise ValueError(
+                    "You have provided a likelihood and a prior function for each model but have not"
+                    "provided separate parameter indices for the two models. For MSTI you must supply"
+                    "parameter indices for each model."
+                )
         
-        if self.model_param_idx != None:
+        if self.model_param_idx is not None:
             if hasattr(self, 'logl'):
-                raise ValueError("You have provided seperate parameter indices for two models but only provided one likelihood and one prior function. For MSTI you must supply one of each for each model.") 
+                raise ValueError(
+                    "You have provided seperate parameter indices for two models but only provided"
+                    "one likelihood and one prior function. For MSTI you must supply one of each"
+                    "for each model."
+                ) 
             self.n_metaparams = 8
             self._lnprob1 = np.zeros(N)
             self._lnlike1 = np.zeros(N)
@@ -486,7 +501,8 @@ class PTSampler(object):
         @param self.Niter: Number of iterations to use for T = 1 chain
         @param Bmax: Maximum beta in ladder (default=1)
         @param Bmin: Minimum beta in ladder (default=None)
-        @param shape: Specifies shape of beta/temperature ladder if a ladder is not already given (default='geometric') 
+        @param shape: Specifies shape of beta/temperature ladder if a ladder is not already 
+                    given (default='geometric') 
         @param ladder: User defined temperature/beta ladder. Either scheme accepted
         @param Tmin: Minimum temperature in ladder (default=None)
         @param Tmax: Maximum temperature in ladder (default=None)
@@ -566,13 +582,19 @@ class PTSampler(object):
 
         # if resuming, just start with first point in chain
         if self.resume and self.resumeLength > 0:
-            p0, lnlike0, lnprob0 = self.resumechain[0, :-self.n_metaparams], self.resumechain[0, -(self.n_metaparams-1)], self.resumechain[0, -self.n_metaparams]
+            p0 = self.resumechain[0, :-self.n_metaparams] 
+            lnlike0 = self.resumechain[0, -(self.n_metaparams-1)]
+            lnprob0 = self.resumechain[0, -self.n_metaparams]
             
             if self.n_metaparams == 8:
-                lnlike1, lnprob1, lnlike2, lnprob2 = self.resumechain[0, -(self.n_metaparams-3)], self.resumechain[0, -(self.n_metaparams-2)], self.resumechain[0, -(self.n_metaparams-5)], self.resumechain[0, -(self.n_metaparams-4)]   ###### Reorder these?
+                lnlike1 = self.resumechain[0, -(self.n_metaparams-3)] 
+                lnprob1 = self.resumechain[0, -(self.n_metaparams-2)]
+                lnlike2 = self.resumechain[0, -(self.n_metaparams-5)]
+                lnprob2 = self.resumechain[0, -(self.n_metaparams-4)]
                 
                 # record first values
-                self.updateChains(p0, lnlike0, lnprob0, i0, lnlike1=lnlike1, lnprob1=lnprob1, lnlike2=lnlike2, lnprob2=lnprob2)
+                self.updateChains(p0, lnlike0, lnprob0, i0, 
+                                  lnlike1=lnlike1, lnprob1=lnprob1, lnlike2=lnlike2, lnprob2=lnprob2)
                 
             else: 
                 # record first values
@@ -618,7 +640,8 @@ class PTSampler(object):
                     lnprob0 = self.beta * (lnlike0) + lnprob2
                     
                 # record first values
-                self.updateChains(p0, lnlike0, lnprob0, i0, lnlike1=lnlike1, lnprob1=lnprob1, lnlike2=lnlike2, lnprob2=lnprob2)
+                self.updateChains(p0, lnlike0, lnprob0, i0, 
+                                  lnlike1=lnlike1, lnprob1=lnprob1, lnlike2=lnlike2, lnprob2=lnprob2)
                 
             else:
                 raise ValueError("Unclear how many meta-parameters there should be.")
@@ -638,14 +661,19 @@ class PTSampler(object):
             if self.n_metaparams==4:
                 p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
             elif self.n_metaparams==8:
-                p0, lnlike0, lnprob0, lnlike1, lnprob1, lnlike2, lnprob2 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter, lnlike1=lnlike1, lnprob1=lnprob1, lnlike2=lnlike2, lnprob2=lnprob2)
+                p0, lnlike0, lnprob0, lnlike1, lnprob1, lnlike2, lnprob2 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, 
+                                                                                              iter, 
+                                                                                              lnlike1=lnlike1, 
+                                                                                              lnprob1=lnprob1, 
+                                                                                              lnlike2=lnlike2, 
+                                                                                              lnprob2=lnprob2)
 
             # compute effective number of samples
             if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
                 try:
                     Neff = iter / max(
                         1,
-                        np.nanmax([acor.acor(self._chain[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]),
+                        np.nanmax([acor.acor(self._chain[self.burn: (iter - 1), ii])[0] for ii in range(self.ndim)]),
                     )
                     # print('\n {0} effective samples'.format(Neff))
                 except NameError:
@@ -730,9 +758,15 @@ class PTSampler(object):
         # if resuming, just use previous chain points.  Use each one thin times to compensate for
         # thinning when they were written out
         if self.resume and self.resumeLength > 0 and iter < self.resumeLength*self.thin:
-            p0, lnlike0, lnprob0 = self.resumechain[0, :-n_metaparams], self.resumechain[0, -(n_metaparams-1)], self.resumechain[0, -n_metaparams]
+            p0 = self.resumechain[0, :-self.n_metaparams] 
+            lnlike0 = self.resumechain[0, -(self.n_metaparams-1)]
+            lnprob0 = self.resumechain[0, -self.n_metaparams]
+            
             if self.n_metaparams == 8:
-                lnlike1, lnprob1, lnlike2, lnprob2 = self.resumechain[0, -(n_metaparams-3)], self.resumechain[0, -(n_metaparams-2)], self.resumechain[0, -(n_metaparams-5)], self.resumechain[0, -(n_metaparams-4)]   ###### Reorder these?
+                lnlike1 = self.resumechain[0, -(self.n_metaparams-3)] 
+                lnprob1 = self.resumechain[0, -(self.n_metaparams-2)]
+                lnlike2 = self.resumechain[0, -(self.n_metaparams-5)]
+                lnprob2 = self.resumechain[0, -(self.n_metaparams-4)]
                 
             # update acceptance counter
             self.naccepted = iter * self.resumechain[iter//self.thin, -2]
@@ -772,9 +806,10 @@ class PTSampler(object):
                     newlnlike = newlnprob1-newlnprob2
                     
                     # ln posterior = beta * ln likelihood + ln prior
-                    ### ln prior is set to ln posterior of the second model
-                    ### ln likelihood is the difference between ln posterior of the first and second models
-                    newlnprob = self.beta * (newlnlike) + newlnprob2 #beta determines how much of newlnprob1 vs newlnprob2
+                    # ln prior is set to ln posterior of the second model
+                    # ln likelihood is the difference between ln posterior of the first and second models
+                    # beta determines how much of newlnprob1 vs newlnprob2
+                    newlnprob = self.beta * (newlnlike) + newlnprob2 
 
             # hastings step
             diff = newlnprob - lnprob0 + qxy
@@ -793,13 +828,14 @@ class PTSampler(object):
         
         # Update chains
         if self.n_metaparams == 8: # MSTI
-            self.updateChains(p0, lnlike0, lnprob0, iter, lnlike1=lnlike1, lnprob1=lnprob1, lnlike2=lnlike2, lnprob2=lnprob2)
+            self.updateChains(p0, lnlike0, lnprob0, iter, 
+                              lnlike1=lnlike1, lnprob1=lnprob1, lnlike2=lnlike2, lnprob2=lnprob2)
             return p0, lnlike0, lnprob0, lnlike1, lnprob1, lnlike2, lnprob2
             
         else:
             # temperature swap
             if iter % self.Tskip == 0 and self.nchain > 1: 
-                p0, lnlike0, lnprob0 = self.PTswap(p0, lnlike0, lnprob0, iter) # No temperature swap for model-switch TI
+                p0, lnlike0, lnprob0 = self.PTswap(p0, lnlike0, lnprob0, iter) # No temperature swap for MSTI
             
             self.updateChains(p0, lnlike0, lnprob0, iter)
             
@@ -907,9 +943,12 @@ class PTSampler(object):
                 
                 elif tstep is None and Bmin is not None:
                     if Bmin == 0:
-                        warnings.warn("Bmin set to 0. Geometric series can only approach beta=0. Make sure to include the hot chain to get a beta=0 chain if you haven't already. Bmin will be set to 1e-7.")
+                        warnings.warn(
+                            "Bmin set to 0. Geometric series can only approach beta=0. Make sure to include the"
+                            "hot chain to get a beta=0 chain if you haven't already. Bmin will be set to 1e-7."
+                        )
                         Bmin = 1e-7
-                    tstep = np.exp(np.log(Bmin / Bmax) / (1-self.nchain))   ### Bmin can't be 0 here
+                    tstep = np.exp(np.log(Bmin / Bmax) / (1-self.nchain))   # Bmin can't be 0 here
                 
                 ladder = np.zeros(self.nchain)
                 for ii in range(self.nchain):
@@ -947,7 +986,9 @@ class PTSampler(object):
             self._chainfile.write("\t%f\t%f" % (self._lnprob[ind], self._lnlike[ind]))
             
             if self.n_metaparams == 8: # MSTI
-                self._chainfile.write("\t%f\t%f\t%f\t%f" % (self._lnprob1[ind], self._lnlike1[ind], self._lnprob2[ind], self._lnlike2[ind]))
+                self._chainfile.write("\t%f\t%f\t%f\t%f" % (
+                    self._lnprob1[ind], self._lnlike1[ind], self._lnprob2[ind], self._lnlike2[ind]
+                ))
                 
             self._chainfile.write("\t%f\t%f\n" % (self.naccepted / iter if iter > 0 else 0, pt_acc))
             
@@ -1023,7 +1064,7 @@ class PTSampler(object):
         """
 
         self._DEbuffer = shift_array(self._DEbuffer, -len(self._AMbuffer))  # shift DEbuffer to the left
-        self._DEbuffer[-len(self._AMbuffer) :] = self._AMbuffer  # add new samples to the new empty spaces
+        self._DEbuffer[-len(self._AMbuffer):] = self._AMbuffer  # add new samples to the new empty spaces
 
     # SCAM jump
     def covarianceJumpProposalSCAM(self, x, iter, beta): 
@@ -1176,7 +1217,7 @@ class PTSampler(object):
             nn = self.stream.integers(0, bufsize)
 
         # get jump scale size
-        prob = self.stream.random()
+        # prob = self.stream.random()
 
         # mode jump    
         # if prob > 0.5:
