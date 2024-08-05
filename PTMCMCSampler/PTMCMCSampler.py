@@ -1,12 +1,11 @@
 import os
 import sys
 import time
+import warnings
 
 import numpy as np
 
 from .nutsjump import HMCJump, MALAJump, NUTSJump
-
-import warnings
 
 try:
     from mpi4py import MPI
@@ -386,17 +385,14 @@ class PTSampler(object):
                 print("Resuming run from chain file {0}".format(self.fname))
             try:
                 self.resumechain = np.loadtxt(self.fname, ndmin=2)
-                self.resumeLength = self.resumechain.shape[
-                    0
-                ]  # Number of samples read from old chain
+                self.resumeLength = self.resumechain.shape[0]  # Number of samples read from old chain
             except ValueError as error:
                 print("Reading old chain files failed with error", error)
                 raise Exception("Couldn't read old chain to resume")
             self._chainfile = open(self.fname, "a")
             if (
                 self.isave != self.thin  # This special case is always OK
-                and self.resumeLength % (self.isave / self.thin)
-                != 1  # Initial sample plus blocks of isave/thin
+                and self.resumeLength % (self.isave / self.thin) != 1  # Initial sample plus blocks of isave/thin
             ):
                 raise Exception(
                     (
@@ -472,9 +468,7 @@ class PTSampler(object):
                 if self.resume:
                     # Percentage of new work done
                     percentnew = (
-                        (iter - self.resumeLength * self.thin)
-                        / (self.Niter - self.resumeLength * self.thin)
-                        * 100
+                        (iter - self.resumeLength * self.thin) / (self.Niter - self.resumeLength * self.thin) * 100
                     )
                     sys.stdout.write(
                         "Finished %2.2f percent (%2.2f percent of new work) in %f s Acceptance rate = %g"
@@ -482,8 +476,7 @@ class PTSampler(object):
                     )
                 else:
                     sys.stdout.write(
-                        "Finished %2.2f percent in %f s Acceptance rate = %g"
-                        % (percent, elapsed, acceptance)
+                        "Finished %2.2f percent in %f s Acceptance rate = %g" % (percent, elapsed, acceptance)
                     )
                 sys.stdout.flush()
 
@@ -562,9 +555,7 @@ class PTSampler(object):
             maxIter = Niter
 
         if isave % thin != 0:
-            raise ValueError(
-                "isave = %d is not a multiple of thin =  %d" % (isave, thin)
-            )
+            raise ValueError("isave = %d is not a multiple of thin =  %d" % (isave, thin))
 
         if Niter % thin != 0:
             print(
@@ -687,17 +678,15 @@ class PTSampler(object):
             if self.n_metaparams == 4:
                 p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
             elif self.n_metaparams == 8:
-                p0, lnlike0, lnprob0, lnlike1, lnprob1, lnlike2, lnprob2 = (
-                    self.PTMCMCOneStep(
-                        p0,
-                        lnlike0,
-                        lnprob0,
-                        iter,
-                        lnlike1=lnlike1,
-                        lnprob1=lnprob1,
-                        lnlike2=lnlike2,
-                        lnprob2=lnprob2,
-                    )
+                p0, lnlike0, lnprob0, lnlike1, lnprob1, lnlike2, lnprob2 = self.PTMCMCOneStep(
+                    p0,
+                    lnlike0,
+                    lnprob0,
+                    iter,
+                    lnlike1=lnlike1,
+                    lnprob1=lnprob1,
+                    lnlike2=lnlike2,
+                    lnprob2=lnprob2,
                 )
 
             # rank 0 decides whether to stop
@@ -705,33 +694,20 @@ class PTSampler(object):
                 if iter >= self.Niter:  # stop if reached maximum number of iterations
                     message = "\nRun Complete"
                     runComplete = True
-                elif (
-                    self.neff
-                ):  # Stop if effective number of samples reached if requested
+                elif self.neff:  # Stop if effective number of samples reached if requested
                     if iter % 1000 == 0 and iter > 2 * self.burn and self.MPIrank == 0:
                         Neff = iter / max(
                             1,
                             np.nanmax(
-                                [
-                                    acor.acor(self._chain[self.burn : (iter - 1), ii])[
-                                        0
-                                    ]
-                                    for ii in range(self.ndim)
-                                ]
+                                [acor.acor(self._chain[self.burn : (iter - 1), ii])[0] for ii in range(self.ndim)]
                             ),
                         )
                         # print('\n {0} effective samples'.format(Neff))
                         if int(Neff) >= self.neff:
-                            message = (
-                                "\nRun Complete with {0} effective samples".format(
-                                    int(Neff)
-                                )
-                            )
+                            message = "\nRun Complete with {0} effective samples".format(int(Neff))
                             runComplete = True
 
-            runComplete = self.comm.bcast(
-                runComplete, root=0
-            )  # rank 0 tells others whether to stop
+            runComplete = self.comm.bcast(runComplete, root=0)  # rank 0 tells others whether to stop
 
             if runComplete:
                 self.writeOutput(iter)  # Possibly write partial block
@@ -767,10 +743,7 @@ class PTSampler(object):
             self._updateRecursive(iter - 1, self.covUpdate)
 
             # broadcast to other chains
-            [
-                self.comm.send(self.cov, dest=rank + 1, tag=111)
-                for rank in range(self.nchain - 1)
-            ]
+            [self.comm.send(self.cov, dest=rank + 1, tag=111) for rank in range(self.nchain - 1)]
 
         # update covariance matrix
         if (iter - 1) % self.covUpdate == 0 and (iter - 1) != 0 and self.MPIrank > 0:
@@ -788,10 +761,7 @@ class PTSampler(object):
             self._updateDEbuffer(iter - 1, self.burn)
 
             # broadcast to other chains
-            [
-                self.comm.send(self._DEbuffer, dest=rank + 1, tag=222)
-                for rank in range(self.nchain - 1)
-            ]
+            [self.comm.send(self._DEbuffer, dest=rank + 1, tag=222) for rank in range(self.nchain - 1)]
 
         # update DE buffer
         if (iter - 1) % self.burn == 0 and (iter - 1) != 0 and self.MPIrank > 0:
@@ -815,11 +785,7 @@ class PTSampler(object):
 
         # if resuming, just use previous chain points.  Use each one thin times to compensate for
         # thinning when they were written out
-        if (
-            self.resume
-            and self.resumeLength > 0
-            and iter < self.resumeLength * self.thin
-        ):
+        if self.resume and self.resumeLength > 0 and iter < self.resumeLength * self.thin:
             p0 = self.resumechain[0, : -self.n_metaparams]
             lnlike0 = self.resumechain[0, -(self.n_metaparams - 1)]
             lnprob0 = self.resumechain[0, -self.n_metaparams]
@@ -860,14 +826,10 @@ class PTSampler(object):
 
                 else:
                     newlnlike1 = self.logl1(y1)  # model
-                    newlnprob1 = (
-                        newlnlike1 + lp1
-                    )  # no beta here, we want full posterior
+                    newlnprob1 = newlnlike1 + lp1  # no beta here, we want full posterior
 
                     newlnlike2 = self.logl2(y2)  # smbhb
-                    newlnprob2 = (
-                        newlnlike2 + lp2
-                    )  # no beta here, we want full posterior
+                    newlnprob2 = newlnlike2 + lp2  # no beta here, we want full posterior
 
                     newlnlike = newlnprob1 - newlnprob2
 
@@ -914,9 +876,7 @@ class PTSampler(object):
         else:
             # temperature swap
             if iter % self.Tskip == 0 and self.nchain > 1:
-                p0, lnlike0, lnprob0 = self.PTswap(
-                    p0, lnlike0, lnprob0, iter
-                )  # No temperature swap for MSTI
+                p0, lnlike0, lnprob0 = self.PTswap(p0, lnlike0, lnprob0, iter)  # No temperature swap for MSTI
 
             self.updateChains(p0, lnlike0, lnprob0, iter)
 
@@ -951,9 +911,7 @@ class PTSampler(object):
         """
         Ts = self.ladder  # as beta
 
-        log_Ls = self.comm.gather(
-            lnlike0, root=0
-        )  # list of likelihoods from each chain
+        log_Ls = self.comm.gather(lnlike0, root=0)  # list of likelihoods from each chain
         p0s = self.comm.gather(p0, root=0)  # list of parameter arrays from each chain
 
         if self.MPIrank == 0:
@@ -1009,9 +967,7 @@ class PTSampler(object):
             if shape == "linear":
                 if tstep is None and Bmin is None:  # Bmin set to 0
                     if Bmin is None:
-                        warnings.warn(
-                            "Bmin not given. Bmin will be set to 0 for linear spacing."
-                        )
+                        warnings.warn("Bmin not given. Bmin will be set to 0 for linear spacing.")
                         Bmin = 0
                     tstep = Bmax / (self.nchain - 1)
 
@@ -1033,9 +989,7 @@ class PTSampler(object):
                             "hot chain to get a beta=0 chain if you haven't already. Bmin will be set to 1e-7."
                         )
                         Bmin = 1e-7
-                    tstep = np.exp(
-                        np.log(Bmin / Bmax) / (1 - self.nchain)
-                    )  # Bmin can't be 0 here
+                    tstep = np.exp(np.log(Bmin / Bmax) / (1 - self.nchain))  # Bmin can't be 0 here
 
                 ladder = np.zeros(self.nchain)
                 for ii in range(self.nchain):
@@ -1067,11 +1021,7 @@ class PTSampler(object):
             if self.MPIrank < self.nchain - 1 and self.swapProposed != 0:
                 pt_acc = self.nswap_accepted / self.swapProposed
 
-            self._chainfile.write(
-                "\t".join(
-                    ["%22.22f" % (self._chain[ind, kk]) for kk in range(self.ndim)]
-                )
-            )
+            self._chainfile.write("\t".join(["%22.22f" % (self._chain[ind, kk]) for kk in range(self.ndim)]))
             self._chainfile.write("\t%f\t%f" % (self._lnprob[ind], self._lnlike[ind]))
 
             if self.n_metaparams == 8:  # MSTI
@@ -1085,9 +1035,7 @@ class PTSampler(object):
                     )
                 )
 
-            self._chainfile.write(
-                "\t%f\t%f\n" % (self.naccepted / iter if iter > 0 else 0, pt_acc)
-            )
+            self._chainfile.write("\t%f\t%f\n" % (self.naccepted / iter if iter > 0 else 0, pt_acc))
 
         self._chainfile.close()
         self.ind_next_write = write_end  # Ready for next write
@@ -1102,19 +1050,14 @@ class PTSampler(object):
             njumps = len(self.propCycle)
             ujumps = np.array(list(set(self.propCycle)))
             for jump in ujumps:
-                fout.write(
-                    "%s %4.2g\n"
-                    % (jump.__name__, np.sum(np.array(self.propCycle) == jump) / njumps)
-                )
+                fout.write("%s %4.2g\n" % (jump.__name__, np.sum(np.array(self.propCycle) == jump) / njumps))
 
             fout.close()
 
             # now write jump statistics for each jump proposal
             for jump in self.jumpDict:
                 fout = open(self.outDir + "/" + jump + "_jump.txt", "a+")
-                fout.write(
-                    "%g\n" % (self.jumpDict[jump][1] / max(1, self.jumpDict[jump][0]))
-                )
+                fout.write("%g\n" % (self.jumpDict[jump][1] / max(1, self.jumpDict[jump][0])))
                 fout.close()
 
     # function to update covariance matrix for jump proposals
@@ -1165,12 +1108,8 @@ class PTSampler(object):
 
         """
 
-        self._DEbuffer = shift_array(
-            self._DEbuffer, -len(self._AMbuffer)
-        )  # shift DEbuffer to the left
-        self._DEbuffer[-len(self._AMbuffer) :] = (
-            self._AMbuffer
-        )  # add new samples to the new empty spaces
+        self._DEbuffer = shift_array(self._DEbuffer, -len(self._AMbuffer))  # shift DEbuffer to the left
+        self._DEbuffer[-len(self._AMbuffer) :] = self._AMbuffer  # add new samples to the new empty spaces
 
     # SCAM jump
     def covarianceJumpProposalSCAM(self, x, iter, beta):
@@ -1227,10 +1166,7 @@ class PTSampler(object):
         cd = 2.4 / np.sqrt(2 * neff) * scale
 
         q[self.groups[jumpind]] += (
-            self.stream.standard_normal()
-            * cd
-            * np.sqrt(self.S[jumpind][ind])
-            * self.U[jumpind][:, ind].flatten()
+            self.stream.standard_normal() * cd * np.sqrt(self.S[jumpind][ind]) * self.U[jumpind][:, ind].flatten()
         )
 
         return q, qxy
@@ -1287,9 +1223,7 @@ class PTSampler(object):
         neff = len(ind)
         cd = 2.4 / np.sqrt(2 * neff) * scale
 
-        y[ind] = y[ind] + self.stream.standard_normal(neff) * cd * np.sqrt(
-            self.S[jumpind][ind]
-        )
+        y[ind] = y[ind] + self.stream.standard_normal(neff) * cd * np.sqrt(self.S[jumpind][ind])
         q[self.groups[jumpind]] = np.dot(self.U[jumpind], y)
 
         return q, qxy
@@ -1342,10 +1276,7 @@ class PTSampler(object):
         for ii in range(ndim):
 
             # jump size
-            sigma = (
-                self._DEbuffer[mm, self.groups[jumpind][ii]]
-                - self._DEbuffer[nn, self.groups[jumpind][ii]]
-            )
+            sigma = self._DEbuffer[mm, self.groups[jumpind][ii]] - self._DEbuffer[nn, self.groups[jumpind][ii]]
 
             # jump
             q[self.groups[jumpind][ii]] += scale * sigma
