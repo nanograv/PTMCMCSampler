@@ -50,6 +50,11 @@ class PTSampler(object):
 
     Along with the AM and DE jumps, the user can add custom
     jump proposals with the ``addProposalToCycle`` fuction.
+    
+    The user can also choose to perform Model-Switch Thermodynamic
+    Integration (MSTI), which uses the Parallel Tempering aspect
+    of PTMCMC to sample from varying mixtures of two models'
+    posteriors.
 
     @param ndim: number of dimensions in problem
     @param logl: single log-likelihood function or tuple of log-likelihood functions if
@@ -110,10 +115,10 @@ class PTSampler(object):
 
         # if 2 loglikelihood functions and 2 log prior functions are supplied (MSTI)
         if (type(logl) is tuple) and (type(logp) is tuple):
-            self.logl1 = _function_wrapper(logl[1], loglargs, loglkwargs)  # model
-            self.logl2 = _function_wrapper(logl[0], loglargs, loglkwargs)  # smbhb
-            self.logp1 = _function_wrapper(logp[1], logpargs, logpkwargs)  # model
-            self.logp2 = _function_wrapper(logp[0], logpargs, logpkwargs)  # smbhb
+            self.logl1 = _function_wrapper(logl[1], loglargs, loglkwargs)
+            self.logl2 = _function_wrapper(logl[0], loglargs, loglkwargs) 
+            self.logp1 = _function_wrapper(logp[1], logpargs, logpkwargs) 
+            self.logp2 = _function_wrapper(logp[0], logpargs, logpkwargs)
         elif (type(logl) is tuple) or (type(logp) is tuple):
             raise ValueError(
                 "You provided a tuple for either the loglikelihood or log prior but not the other."
@@ -197,6 +202,7 @@ class PTSampler(object):
         neff=None,
         writeHotChains=False,
         hotChain=False,
+        MSTI=False
         nameChainTemps=False,
         model_param_idx=None,
     ):
@@ -228,10 +234,13 @@ class PTSampler(object):
         @param self.thin: MCMC Samples are recorded every self.thin samples
         @param i0: Iteration to start MCMC (if i0 !=0, do not re-initialize)
         @param neff: Number of effective samples to collect before terminating
-        @param writeHotChains:
-        @param hotChain:
+        @param writeHotChains: Writes out the hot chain (default=False)
+        @param hotChain: Beta=0 (previously Temp=1e80) (default=False)
+        @param MSTI: Indicates whether or not to use Model-Switch Thermodynamic Integration
+                    (default=False)
         @param model_param_idx: A tuple of lists of indices for each model’s parameters in MSTI,
-                        used to sift through the combined set of parameters in p0. (default=None)
+                        used to sift through the combined set of parameters in p0. Only needed if
+                        the two models have different parameters (default=None)
         @param nameChainTemps: Reverts to temperature naming convention of chains (default=False)
 
 
@@ -267,18 +276,17 @@ class PTSampler(object):
         self.n_metaparams = 4
         self.model_param_idx = model_param_idx
 
-        if self.model_param_idx is None:
+        if not self.MSTI:
             if hasattr(self, "logl1"):
                 raise ValueError(
-                    "You have provided a likelihood and a prior function for each model but have not"
-                    "provided separate parameter indices for the two models. For MSTI you must supply"
-                    "parameter indices for each model."
+                    "You have provided a likelihood and a prior function for two models but have"
+                    "indicated that MSTI should not be performed."
                 )
 
-        if self.model_param_idx is not None:
+        if self.MSTI:
             if hasattr(self, "logl"):
                 raise ValueError(
-                    "You have provided seperate parameter indices for two models but only provided"
+                    "You have indicated that MSTI should be performed but have only provided"
                     "one likelihood and one prior function. For MSTI you must supply one of each"
                     "for each model."
                 )
@@ -508,6 +516,7 @@ class PTSampler(object):
         neff=None,
         writeHotChains=False,
         hotChain=False,
+        MSTI=False,
         model_param_idx=None,
         nameChainTemps=False,
     ):
@@ -536,14 +545,16 @@ class PTSampler(object):
         @param HMCsteps: Maximum number of steps in an HMC trajectory (default=300)
         @param burn: Burn in time (DE jumps added after this iteration) (default=10000)
         @param maxIter: Maximum number of iterations for high temperature chains
-                        (default=2*self.Niter)
+                    (default=2*self.Niter)
         @param self.thin: MCMC Samples are recorded every self.thin samples
         @param i0: Iteration to start MCMC (if i0 !=0, do not re-initialize)
         @param neff: Number of effective samples to collect before terminating
-        @param writeHotChains:
-        @param hotChain:
+        @param writeHotChains: Writes out the hot chain (default=False)
+        @param hotChain: Beta=0 (previously Temp=1e80) (default=False)
+        @param MSTI: Indicates whether or not to use Model-Switch Thermodynamic Integration
+                    (default=False)
         @param model_param_idx: A tuple of lists of indices for each model’s parameters in MSTI,
-                        used to sift through the combined set of parameters in p0. (default=None)
+                    used to sift through the combined set of parameters in p0. (default=None)
         @param nameChainTemps: Reverts to temperature naming convention of chains (default=False)
 
         """
@@ -604,7 +615,7 @@ class PTSampler(object):
             lnlike0 = self.resumechain[0, -(self.n_metaparams - 1)]
             lnprob0 = self.resumechain[0, -self.n_metaparams]
 
-            if self.n_metaparams == 8:
+            if self.MSTI:
                 lnlike1 = self.resumechain[0, -(self.n_metaparams - 3)]
                 lnprob1 = self.resumechain[0, -(self.n_metaparams - 2)]
                 lnlike2 = self.resumechain[0, -(self.n_metaparams - 5)]
@@ -614,19 +625,24 @@ class PTSampler(object):
 
         else:
             # compute prior and likelihood
-            if self.n_metaparams == 4:
+            if not self.MSTI:
                 lp = self.logp(p0)
 
-                if lp == float(-np.inf):
+                if lp == -np.inf:
                     lnprob0 = -np.inf
 
                 else:
                     lnlike0 = self.logl(p0)
                     lnprob0 = self.beta * lnlike0 + lp
 
-            elif self.n_metaparams == 8:  # Using MSTI
-                y1 = [p0[idx] for idx in model_param_idx[1]]
-                y2 = [p0[idx] for idx in model_param_idx[0]]
+            elif self.MSTI:  # Using MSTI
+                if self.model_param_idx:
+                    y1 = [p0[idx] for idx in self.model_param_idx[1]]
+                    y2 = [p0[idx] for idx in self.model_param_idx[0]]
+                    
+                else:
+                    y1 = p0
+                    y2 = p0
 
                 lp1 = self.logp1(y1)
                 lp2 = self.logp2(y2)
@@ -635,24 +651,21 @@ class PTSampler(object):
                     lnprob0 = -np.inf
 
                 else:
-                    lnlike1 = self.logl1(y1)  # model
+                    lnlike1 = self.logl1(y1)
                     lnprob1 = lnlike1 + lp1
 
-                    lnlike2 = self.logl2(y2)  # smbhb
+                    lnlike2 = self.logl2(y2)
                     lnprob2 = lnlike2 + lp2
 
                     lnlike0 = lnprob1 - lnprob2
 
                     lnprob0 = self.beta * (lnlike0) + lnprob2
 
-            else:
-                raise ValueError("Unclear how many meta-parameters there should be.")
-
-        if self.n_metaparams == 4:
+        if not self.MSTI:
             # record first values
             self.updateChains(p0, lnlike0, lnprob0, i0)
 
-        elif self.n_metaparams == 8:  # Using MSTI
+        elif MSTI:  # Using MSTI
             # record first values
             self.updateChains(
                 p0,
@@ -675,9 +688,9 @@ class PTSampler(object):
             iter += 1
             self.comm.barrier()  # make sure all processes are at the same iteration
             # call PTMCMCOneStep
-            if self.n_metaparams == 4:
+            if not self.MSTI:
                 p0, lnlike0, lnprob0 = self.PTMCMCOneStep(p0, lnlike0, lnprob0, iter)
-            elif self.n_metaparams == 8:
+            elif self.MSTI:
                 p0, lnlike0, lnprob0, lnlike1, lnprob1, lnlike2, lnprob2 = self.PTMCMCOneStep(
                     p0,
                     lnlike0,
@@ -790,7 +803,7 @@ class PTSampler(object):
             lnlike0 = self.resumechain[0, -(self.n_metaparams - 1)]
             lnprob0 = self.resumechain[0, -self.n_metaparams]
 
-            if self.n_metaparams == 8:
+            if self.MSTI:
                 lnlike1 = self.resumechain[0, -(self.n_metaparams - 3)]
                 lnprob1 = self.resumechain[0, -(self.n_metaparams - 2)]
                 lnlike2 = self.resumechain[0, -(self.n_metaparams - 5)]
@@ -803,7 +816,7 @@ class PTSampler(object):
             self.jumpDict[jump_name][0] += 1
 
             # compute prior and likelihood
-            if self.n_metaparams == 4:
+            if not self.MSTI:
                 lp = self.logp(y)
 
                 if lp == -np.inf:
@@ -813,22 +826,27 @@ class PTSampler(object):
                     newlnlike = self.logl(y)
                     newlnprob = self.beta * newlnlike + lp
 
-            elif self.n_metaparams == 8:  # Using MSTI
+            elif self.MSTI:  # Using MSTI
+            
+                if self.model_param_idx:
+                    y1 = [y[idx] for idx in self.model_param_idx[1]]
+                    y2 = [y[idx] for idx in self.model_param_idx[0]]
 
-                y1 = [y[idx] for idx in self.model_param_idx[1]]  # model
-                y2 = [y[idx] for idx in self.model_param_idx[0]]  # smbhb
+                else:
+                    y1 = p0
+                    y2 = p0
 
-                lp1 = self.logp1(y1)  # model
-                lp2 = self.logp2(y2)  # smbhb
+                lp1 = self.logp1(y1)
+                lp2 = self.logp2(y2)
 
                 if lp1 == -np.inf or lp2 == -np.inf:
                     newlnprob = -np.inf
 
                 else:
-                    newlnlike1 = self.logl1(y1)  # model
+                    newlnlike1 = self.logl1(y1)
                     newlnprob1 = newlnlike1 + lp1  # no beta here, we want full posterior
 
-                    newlnlike2 = self.logl2(y2)  # smbhb
+                    newlnlike2 = self.logl2(y2)
                     newlnprob2 = newlnlike2 + lp2  # no beta here, we want full posterior
 
                     newlnlike = newlnprob1 - newlnprob2
@@ -847,7 +865,7 @@ class PTSampler(object):
 
                 # accept jump
                 p0, lnlike0, lnprob0 = y, newlnlike, newlnprob
-                if self.n_metaparams == 8:
+                if self.MSTI:
                     lnlike1, lnlike2, lnprob1, lnprob2 = (
                         newlnlike1,
                         newlnlike2,
@@ -860,7 +878,7 @@ class PTSampler(object):
                 self.jumpDict[jump_name][1] += 1
 
         # Update chains
-        if self.n_metaparams == 8:  # MSTI
+        if self.MSTI:
             self.updateChains(
                 p0,
                 lnlike0,
@@ -884,7 +902,8 @@ class PTSampler(object):
 
     def PTswap(self, p0, lnlike0, lnprob0, iter):
         """
-        Do parallel tempering swap. This feature is not compatible with MSTI
+        Do parallel tempering swap. This feature is not compatible with 
+        Model-Switch Thermodynamic Integraton (MSTI)
 
         (Repurposed from Neil Cornish/Bence Becsy's code)
 
@@ -1024,7 +1043,7 @@ class PTSampler(object):
             self._chainfile.write("\t".join(["%22.22f" % (self._chain[ind, kk]) for kk in range(self.ndim)]))
             self._chainfile.write("\t%f\t%f" % (self._lnprob[ind], self._lnlike[ind]))
 
-            if self.n_metaparams == 8:  # MSTI
+            if self.MSTI:  # MSTI
                 self._chainfile.write(
                     "\t%f\t%f\t%f\t%f"
                     % (
