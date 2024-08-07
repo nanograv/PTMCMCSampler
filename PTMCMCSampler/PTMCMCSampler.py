@@ -50,7 +50,7 @@ class PTSampler(object):
 
     Along with the AM and DE jumps, the user can add custom
     jump proposals with the ``addProposalToCycle`` fuction.
-    
+
     The user can also choose to perform Model-Switch Thermodynamic
     Integration (MSTI), which uses the Parallel Tempering aspect
     of PTMCMC to sample from varying mixtures of two models'
@@ -116,8 +116,8 @@ class PTSampler(object):
         # if 2 loglikelihood functions and 2 log prior functions are supplied (MSTI)
         if (type(logl) is tuple) and (type(logp) is tuple):
             self.logl1 = _function_wrapper(logl[1], loglargs, loglkwargs)
-            self.logl2 = _function_wrapper(logl[0], loglargs, loglkwargs) 
-            self.logp1 = _function_wrapper(logp[1], logpargs, logpkwargs) 
+            self.logl2 = _function_wrapper(logl[0], loglargs, loglkwargs)
+            self.logp1 = _function_wrapper(logp[1], logpargs, logpkwargs)
             self.logp2 = _function_wrapper(logp[0], logpargs, logpkwargs)
         elif (type(logl) is tuple) or (type(logp) is tuple):
             raise ValueError(
@@ -202,7 +202,7 @@ class PTSampler(object):
         neff=None,
         writeHotChains=False,
         hotChain=False,
-        MSTI=False
+        MSTI=False,
         nameChainTemps=False,
         model_param_idx=None,
     ):
@@ -274,21 +274,22 @@ class PTSampler(object):
         self.swapProposed = 0
         self.nswap_accepted = 0
         self.n_metaparams = 4
+        self.MSTI = MSTI
         self.model_param_idx = model_param_idx
 
         if not self.MSTI:
             if hasattr(self, "logl1"):
                 raise ValueError(
                     "You have provided a likelihood and a prior function for two models but have"
-                    "indicated that MSTI should not be performed."
+                    " indicated that MSTI should not be performed."
                 )
 
         if self.MSTI:
             if hasattr(self, "logl"):
                 raise ValueError(
                     "You have indicated that MSTI should be performed but have only provided"
-                    "one likelihood and one prior function. For MSTI you must supply one of each"
-                    "for each model."
+                    " one likelihood and one prior function. For MSTI you must supply one of each"
+                    " for each model."
                 )
             self.n_metaparams = 8
             self._lnprob1 = np.zeros(N)
@@ -603,6 +604,7 @@ class PTSampler(object):
                 neff=neff,
                 writeHotChains=writeHotChains,
                 hotChain=hotChain,
+                MSTI=MSTI,
                 model_param_idx=model_param_idx,
                 nameChainTemps=nameChainTemps,
             )
@@ -639,7 +641,7 @@ class PTSampler(object):
                 if self.model_param_idx:
                     y1 = [p0[idx] for idx in self.model_param_idx[1]]
                     y2 = [p0[idx] for idx in self.model_param_idx[0]]
-                    
+
                 else:
                     y1 = p0
                     y2 = p0
@@ -827,14 +829,14 @@ class PTSampler(object):
                     newlnprob = self.beta * newlnlike + lp
 
             elif self.MSTI:  # Using MSTI
-            
+
                 if self.model_param_idx:
                     y1 = [y[idx] for idx in self.model_param_idx[1]]
                     y2 = [y[idx] for idx in self.model_param_idx[0]]
 
                 else:
-                    y1 = p0
-                    y2 = p0
+                    y1 = y
+                    y2 = y
 
                 lp1 = self.logp1(y1)
                 lp2 = self.logp2(y2)
@@ -902,7 +904,7 @@ class PTSampler(object):
 
     def PTswap(self, p0, lnlike0, lnprob0, iter):
         """
-        Do parallel tempering swap. This feature is not compatible with 
+        Do parallel tempering swap. This feature is not compatible with
         Model-Switch Thermodynamic Integraton (MSTI)
 
         (Repurposed from Neil Cornish/Bence Becsy's code)
