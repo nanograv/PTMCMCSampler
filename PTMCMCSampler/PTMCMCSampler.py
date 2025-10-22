@@ -292,7 +292,7 @@ class PTSampler(object):
             if self.verbose:
                 print("Resuming run from chain file {0}".format(self.fname))
             try:
-                self.resumechain = np.loadtxt(self.fname)
+                self.resumechain = np.loadtxt(self.fname, ndmin=2)
                 self.resumeLength = self.resumechain.shape[0]  # Number of samples read from old chain
             except ValueError as error:
                 print("Reading old chain files failed with error", error)
@@ -660,6 +660,8 @@ class PTSampler(object):
         log_Ls = self.comm.gather(lnlike0, root=0)  # list of likelihoods from each chain
         p0s = self.comm.gather(p0, root=0)  # list of parameter arrays from each chain
         swap_accepted = np.zeros(self.nchain)
+        new_p0s = np.zeros_like(p0s)
+        new_log_Ls = np.zeros_like(log_Ls)
 
         if self.MPIrank == 0:
             # set up map to help keep track of swaps
@@ -680,12 +682,12 @@ class PTSampler(object):
 
             # loop through the chains and record the new samples and log_Ls
             for j in range(self.nchain):
-                p0s[j] = p0s[swap_map[j]]
-                log_Ls[j] = log_Ls[swap_map[j]]
+                new_p0s[j] = p0s[swap_map[j]]
+                new_log_Ls[j] = log_Ls[swap_map[j]]
 
         # broadcast the new samples and log_Ls to all chains
-        p0 = self.comm.scatter(p0s, root=0)
-        lnlike0 = self.comm.scatter(log_Ls, root=0)
+        p0 = self.comm.scatter(new_p0s, root=0)
+        lnlike0 = self.comm.scatter(new_log_Ls, root=0)
         self.nswap_accepted += self.comm.scatter(swap_accepted, root=0)
         self.swapProposed += 1
 
