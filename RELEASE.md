@@ -22,22 +22,29 @@ make test
 # Visit: https://github.com/nanograv/PTMCMCSampler/actions
 ```
 
-### 2. Create GitHub Release
+### 2. Create Git Tag
+```bash
+# Create and push the git tag
+git tag v2.1.3
+git push origin v2.1.3
+```
+
+### 3. Create GitHub Release
 1. Go to [PTMCMCSampler releases](https://github.com/nanograv/PTMCMCSampler/releases)
 2. Click "Create a new release"
-3. Choose a tag version (e.g., `v2.1.3`)
+3. Choose the tag version you just created (e.g., `v2.1.3`)
 4. Set release title (e.g., `v2.1.3`)
 5. Add release notes describing changes
 6. Click "Publish release"
 
-### 3. Automated PyPI Upload
+### 4. Automated PyPI Upload
 - GitHub Actions will automatically:
   - Run tests across Python 3.8-3.11 and Ubuntu/macOS
   - Build source distribution and wheel
   - Test the built packages (`make test-sdist`, `make test-wheel`)
   - Upload to PyPI using stored credentials
 
-### 4. Update Conda Feedstock (Manual)
+### 5. Update Conda Feedstock (Manual)
 1. Go to [ptmcmcsampler-feedstock](https://github.com/conda-forge/ptmcmcsampler-feedstock)
 2. Edit `recipe/meta.yaml`:
    - Update version number (line 2: `{% set version = "2.1.3" %}`)
@@ -58,16 +65,8 @@ make test
 ## Release Checklist
 - [ ] All tests passing on GitHub Actions
 - [ ] Release notes prepared
+- [ ] Git tag created and pushed
 - [ ] GitHub release created
 - [ ] PyPI upload successful (check [PyPI page](https://pypi.org/project/ptmcmcsampler/))
 - [ ] Conda feedstock updated
 - [ ] Conda package available (check [conda-forge page](https://anaconda.org/conda-forge/ptmcmcsampler))
-
-## Example Release Commands
-```bash
-# Tag a new version
-git tag v2.1.3
-git push origin v2.1.3
-
-# Then create GitHub release via web interface
-```
