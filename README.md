@@ -127,6 +127,10 @@ CTRL-D
 
 
 
+## For Maintainers
+
+- [Release Process](RELEASE.md) - How to create new releases
+
 ## Attribution
 
 If you make use of this code, please cite:
