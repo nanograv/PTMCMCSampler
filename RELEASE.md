@@ -12,8 +12,8 @@
 ### 1. Prepare Release
 ```bash
 # Ensure main branch is up to date
-git checkout main
-git pull origin main
+git checkout master
+git pull origin master
 
 # Run tests locally
 make test
