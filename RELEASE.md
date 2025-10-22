@@ -74,17 +74,12 @@ git push origin v2.1.3
 ### PyPI Package Availability
 - **Upload time**: 5-10 minutes after GitHub release is published
 - **Verification**: Check [PyPI package page](https://pypi.org/project/ptmcmcsampler/) for your version
-- **SHA256 hash**: Available immediately after upload completes
+- **SHA256 hash**: Available immediately after upload completes (at the tar.gz download)
 
 ### Conda Package Availability  
 - **Feedstock PR**: Submit after PyPI package is available
 - **Build time**: 1-2 hours after feedstock PR is merged
 - **Verification**: Check [conda-forge page](https://anaconda.org/conda-forge/ptmcmcsampler)
-
-### Total Release Timeline
-- **GitHub release**: Immediate
-- **PyPI package**: 5-10 minutes
-- **Conda package**: 1-3 hours (depending on feedstock processing)
 
 ## Version Management
 - Uses `setuptools_scm` - version automatically generated from git tags
