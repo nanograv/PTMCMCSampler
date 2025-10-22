@@ -45,12 +45,46 @@ git push origin v2.1.3
   - Upload to PyPI using stored credentials
 
 ### 5. Update Conda Feedstock (Manual)
-1. Go to [ptmcmcsampler-feedstock](https://github.com/conda-forge/ptmcmcsampler-feedstock)
-2. Edit `recipe/meta.yaml`:
-   - Update version number (line 2: `{% set version = "2.1.3" %}`)
-   - Update SHA256 hash (get from PyPI package page)
-3. Submit PR to conda-forge
-4. Conda-forge bot will handle the rest
+**⚠️ IMPORTANT: Wait for PyPI package to be available first!**
+
+1. **Wait for PyPI upload to complete** (usually 5-10 minutes after GitHub release)
+   - Check [PyPI package page](https://pypi.org/project/ptmcmcsampler/) for your new version
+   - Verify the package files are downloadable
+
+2. **Get SHA256 hash from PyPI**:
+   - Go to your package page on PyPI
+   - Click on the version number
+   - Copy the SHA256 hash from the package details (when trying to download .tar.gz file)
+
+3. **Update conda feedstock**:
+   - Go to [ptmcmcsampler-feedstock](https://github.com/conda-forge/ptmcmcsampler-feedstock) and clone the repository if you do not have it yet
+   - Edit `recipe/meta.yaml`:
+     - Update version number (line 2: `{% set version = "2.1.3" %}`)
+     - Update SHA256 hash with the value from PyPI
+     - Commit to a release branch, and push to your personal github repository/branch
+   - Submit PR to conda-forge
+   - After submitting the PR, add this exact comment to the PR: `@conda-forge-admin, please rerender`
+   - Conda-forge bot will handle the rest
+
+4. **Wait for conda package** (usually 1-2 hours after feedstock PR is merged)
+   - Check [conda-forge page](https://anaconda.org/conda-forge/ptmcmcsampler) for availability
+
+## Timing Considerations
+
+### PyPI Package Availability
+- **Upload time**: 5-10 minutes after GitHub release is published
+- **Verification**: Check [PyPI package page](https://pypi.org/project/ptmcmcsampler/) for your version
+- **SHA256 hash**: Available immediately after upload completes
+
+### Conda Package Availability  
+- **Feedstock PR**: Submit after PyPI package is available
+- **Build time**: 1-2 hours after feedstock PR is merged
+- **Verification**: Check [conda-forge page](https://anaconda.org/conda-forge/ptmcmcsampler)
+
+### Total Release Timeline
+- **GitHub release**: Immediate
+- **PyPI package**: 5-10 minutes
+- **Conda package**: 1-3 hours (depending on feedstock processing)
 
 ## Version Management
 - Uses `setuptools_scm` - version automatically generated from git tags
