@@ -64,9 +64,14 @@ git push origin v2.1.3
 
 4. **Add rerender comment**:
    - Add this exact comment to the PR: `@conda-forge-admin, please rerender`
-   - Conda-forge bot will handle the rest
+   - Wait for automated rerendering to complete
 
-5. **Wait for conda package** (usually 1-2 hours after PR is merged)
+5. **Self-merge when ready**:
+   - Verify all checks pass (linting, rerendering)
+   - As a maintainer, merge the PR yourself
+   - No external review required for routine releases
+
+6. **Wait for conda package** (usually 1-2 hours after PR is merged)
    - Check [conda-forge page](https://anaconda.org/conda-forge/ptmcmcsampler) for availability
 
 **Fallback if bot doesn't create PR within 1 hour:**
@@ -105,5 +110,6 @@ git push origin v2.1.3
 - [ ] Git tag created and pushed
 - [ ] GitHub release created
 - [ ] PyPI upload successful (check [PyPI page](https://pypi.org/project/ptmcmcsampler/))
-- [ ] Conda feedstock updated
+- [ ] Conda-forge bot PR created (wait ~30 minutes)
+- [ ] Conda feedstock PR merged (self-merge when checks pass)
 - [ ] Conda package available (check [conda-forge page](https://anaconda.org/conda-forge/ptmcmcsampler))
