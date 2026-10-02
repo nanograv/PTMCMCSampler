@@ -692,7 +692,7 @@ class NUTSJump(GradientJump):
         joint = self.loghamiltonian(logp, r0)
 
         # Initial slice sampling variable
-        logu = float(joint - np.random.exponential(1, size=1))
+        logu = float(joint - np.random.exponential(1))
 
         # Initialize the binary tree for this trajectory
         sample = np.copy(q)
