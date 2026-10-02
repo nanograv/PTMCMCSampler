@@ -33,6 +33,7 @@ jobs:
     - name: Install non-python dependencies on linux
       if: runner.os == 'Linux'
       run: |
+        sudo apt update
         sudo apt install libopenmpi-dev
     - name: Install dependencies and package
       run: |
